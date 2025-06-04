@@ -38,12 +38,12 @@ class LeggedRobotCfg(BaseConfig):
         load_student_config = False
         mask_priv_obs = False
     class env:
-        num_envs = 6144
+        num_envs = 4096  # origin: 6144; teacher: 4096; only used for teacher policy
 
         n_scan = 132
-        n_priv = 3+3 +3
-        n_priv_latent = 4 + 1 + 12 +12
-        n_proprio = 3 + 2 + 3 + 4 + 36 + 5
+        n_priv = 3+3+3 # todo: means
+        n_priv_latent = 4 + 1 + 12 +12 # todo: means
+        n_proprio = 3 + 2 + 3 + 4 + 36 + 5 # todo: means
         history_len = 10
 
         num_observations = n_proprio + n_scan + history_len*n_proprio + n_priv_latent + n_priv #n_scan + n_proprio + n_priv #187 + 47 + 5 + 12 
@@ -54,12 +54,8 @@ class LeggedRobotCfg(BaseConfig):
         episode_length_s = 20 # episode length in seconds
         obs_type = "og"
 
-
-        
-        
-        
         history_encoding = True
-        reorder_dofs = True
+        reorder_dofs = True ## todo: means
         
         
         # action_delay_range = [0, 5]
@@ -69,8 +65,9 @@ class LeggedRobotCfg(BaseConfig):
         # action_delay_range = [0, 5]
 
         # additional visual inputs 
-        include_foot_contacts = True
+        include_foot_contacts = True  ## todo: means
         
+        ## random domain
         randomize_start_pos = False
         randomize_start_vel = False
         randomize_start_yaw = False
@@ -80,22 +77,22 @@ class LeggedRobotCfg(BaseConfig):
         randomize_start_pitch = False
         rand_pitch_range = 1.6
 
-        contact_buf_len = 100
+        contact_buf_len = 100 ## todo: means
 
-        next_goal_threshold = 0.2
-        reach_goal_delay = 0.1
+        next_goal_threshold = 0.2 # 完成距离阈值
+        reach_goal_delay = 0.1 # 完成时间
         num_future_goal_obs = 2
 
-    class depth:
+    class depth: ## camera setting
         use_camera = False
-        camera_num_envs = 192
-        camera_terrain_num_rows = 10
-        camera_terrain_num_cols = 20
+        camera_num_envs = 64 # origin: 192 # only used for student policy
+        camera_terrain_num_rows = 10 ## todo: means
+        camera_terrain_num_cols = 20 ## todo: means
 
-        position = [0.27, 0, 0.03]  # front camera
-        angle = [-5, 5]  # positive pitch down
+        position = [0.27, 0, 0.03]  # front camera ## Notes: camera position w.r.t. body frame
+        angle = [-5, 5]  # positive pitch down ## todo: means
 
-        update_interval = 5  # 5 works without retraining, 8 worse
+        update_interval = 5  # 5 works without retraining, 8 worse ## todo: means
 
         original = (106, 60)
         resized = (87, 58)
@@ -131,7 +128,7 @@ class LeggedRobotCfg(BaseConfig):
             gravity = 0.02
             height_measurements = 0.02
 
-    class terrain:
+    class terrain: ## Notes: need to tune
         mesh_type = 'trimesh' # "heightfield" # none, plane, heightfield or trimesh
         hf2mesh_method = "grid"  # grid or fast
         max_error = 0.1 # for fast
@@ -139,7 +136,7 @@ class LeggedRobotCfg(BaseConfig):
 
         y_range = [-0.4, 0.4]
         
-        edge_width_thresh = 0.05
+        edge_width_thresh = 0.05 ## todo: means
         horizontal_scale = 0.05 # [m] influence computation time by a lot
         horizontal_scale_camera = 0.1
         vertical_scale = 0.005 # [m]
@@ -281,7 +278,7 @@ class LeggedRobotCfg(BaseConfig):
         max_push_vel_xy = 0.5
 
         randomize_motor = True
-        motor_strength_range = [0.8, 1.2]
+        motor_strength_range = [0.8, 1.2] # limit
 
         delay_update_global_steps = 24 * 8000
         action_delay = False
@@ -404,7 +401,7 @@ class LeggedRobotCfgPPO(BaseConfig):
         policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24 # per iteration
-        max_iterations = 50000 # number of policy updates
+        max_iterations = 15000 # number of policy updates origin: 50000, teacher:15000，student may be 15000 better, because I reduce the camera_num_envs from 192 to 64
 
         # logging
         save_interval = 100 # check for potential saves every this many iterations

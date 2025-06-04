@@ -50,7 +50,7 @@ class A1ParkourCfg( LeggedRobotCfg ):
             'FR_calf_joint': -1.5,  # [rad]
             'RR_calf_joint': -1.5,    # [rad]
         }
-
+    
     class control( LeggedRobotCfg.control ):
         # PD Drive parameters:
         control_type = 'P'

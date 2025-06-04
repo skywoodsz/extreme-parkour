@@ -194,8 +194,6 @@ class BaseTask():
                         if self.gym.query_viewer_has_closed(self.viewer):
                             sys.exit()
 
-                        
-                
             # fetch results
             if self.device != 'cpu':
                 self.gym.fetch_results(self.sim, True)
@@ -215,4 +213,10 @@ class BaseTask():
                 cam_trans = torch.tensor([p.x, p.y, p.z], requires_grad=False, device=self.device)
                 look_at_pos = self.root_states[self.lookat_id, :3].clone()
                 self.lookat_vec = cam_trans - look_at_pos
-            
+
+        else: # for save video
+            if self.cfg.video_logger.enable_video_logger and (not self.video_logger.is_complete()):
+                # fetch results
+                if self.device != 'cpu':
+                    self.gym.fetch_results(self.sim, True)
+                self.gym.step_graphics(self.sim)

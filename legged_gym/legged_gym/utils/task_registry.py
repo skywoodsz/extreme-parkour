@@ -142,7 +142,7 @@ class TaskRegistry():
         elif log_root is None:
             log_dir = None
         else:
-            log_dir = log_root#os.path.join(log_root, datetime.now().strftime('%b%d_%H-%M-%S') + '_' + train_cfg.runner.run_name)
+            log_dir = log_root #os.path.join(log_root, datetime.now().strftime('%b%d_%H-%M-%S') + '_' + train_cfg.runner.run_name)
         
         train_cfg_dict = class_to_dict(train_cfg)
         runner = OnPolicyRunner(env, 

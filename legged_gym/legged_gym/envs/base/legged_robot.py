@@ -117,11 +117,14 @@ class LeggedRobot(BaseTask):
         Args:
             actions (torch.Tensor): Tensor of shape (num_envs, num_actions_per_env)
         """
-        actions = self.reindex(actions)
+        actions = self.reindex(actions) # 根据腿的顺序重新定义joint顺序
 
-        actions.to(self.device)
+        actions.to(self.device) 
+        ## action 历史
+        # None: 加一维度和action_history_buf对齐
         self.action_history_buf = torch.cat([self.action_history_buf[:, 1:].clone(), actions[:, None, :].clone()], dim=1)
-        if self.cfg.domain_rand.action_delay:
+        if self.cfg.domain_rand.action_delay: # 模拟delay
+            # self.global_counter 每一个step更新一次
             if self.global_counter % self.cfg.domain_rand.delay_update_global_steps == 0:
                 if len(self.cfg.domain_rand.action_curr_step) != 0:
                     self.delay = torch.tensor(self.cfg.domain_rand.action_curr_step.pop(0), device=self.device, dtype=torch.float)
@@ -131,8 +134,8 @@ class LeggedRobot(BaseTask):
             actions = self.action_history_buf[:, indices.long()] # delay for 1/50=20ms
 
         self.global_counter += 1
-        self.total_env_steps_counter += 1
-        clip_actions = self.cfg.normalization.clip_actions / self.cfg.control.action_scale
+        self.total_env_steps_counter += 1 # unused
+        clip_actions = self.cfg.normalization.clip_actions / self.cfg.control.action_scale # todo: action limit need to tune
         self.actions = torch.clip(actions, -clip_actions, clip_actions).to(self.device)
         self.render()
 
@@ -148,8 +151,8 @@ class LeggedRobot(BaseTask):
         self.obs_buf = torch.clip(self.obs_buf, -clip_obs, clip_obs)
         if self.privileged_obs_buf is not None:
             self.privileged_obs_buf = torch.clip(self.privileged_obs_buf, -clip_obs, clip_obs)
-        self.extras["delta_yaw_ok"] = self.delta_yaw < 0.6
-        if self.cfg.depth.use_camera and self.global_counter % self.cfg.depth.update_interval == 0:
+        self.extras["delta_yaw_ok"] = self.delta_yaw < 0.6 # for student policy
+        if self.cfg.depth.use_camera and self.global_counter % self.cfg.depth.update_interval == 0: # 5次step更新camera
             self.extras["depth"] = self.depth_buffer[:, -2]  # have already selected last one
         else:
             self.extras["depth"] = None
@@ -203,8 +206,8 @@ class LeggedRobot(BaseTask):
 
         self.gym.end_access_image_tensors(self.sim)
 
-    def _update_goals(self):
-        next_flag = self.reach_goal_timer > self.cfg.env.reach_goal_delay / self.dt
+    def _update_goals(self): # 更新目标和heading
+        next_flag = self.reach_goal_timer > self.cfg.env.reach_goal_delay / self.dt # 完成的最小时间
         self.cur_goal_idx[next_flag] += 1
         self.reach_goal_timer[next_flag] = 0
 
@@ -244,7 +247,7 @@ class LeggedRobot(BaseTask):
 
         self.roll, self.pitch, self.yaw = euler_from_quaternion(self.base_quat)
 
-        contact = torch.norm(self.contact_forces[:, self.feet_indices], dim=-1) > 2.
+        contact = torch.norm(self.contact_forces[:, self.feet_indices], dim=-1) > 2. # todo: 接触阈值, need to tune
         self.contact_filt = torch.logical_or(contact, self.last_contacts) 
         self.last_contacts = contact
         
@@ -270,6 +273,7 @@ class LeggedRobot(BaseTask):
         self.last_torques[:] = self.torques[:]
         self.last_root_vel[:] = self.root_states[:, 7:13]
 
+        ## 可视化
         if self.viewer and self.enable_viewer_sync and self.debug_viz:
             self.gym.clear_lines(self.viewer)
             # self._draw_height_samples()
@@ -384,40 +388,41 @@ class LeggedRobot(BaseTask):
         """ 
         Computes observations
         """
+
         imu_obs = torch.stack((self.roll, self.pitch), dim=1)
-        if self.global_counter % 5 == 0:
+        if self.global_counter % 5 == 0: # step 5次更新一次yaw
             self.delta_yaw = self.target_yaw - self.yaw
             self.delta_next_yaw = self.next_target_yaw - self.yaw
         obs_buf = torch.cat((#skill_vector, 
-                            self.base_ang_vel  * self.obs_scales.ang_vel,   #[1,3]
-                            imu_obs,    #[1,2]
-                            0*self.delta_yaw[:, None], 
+                            self.base_ang_vel  * self.obs_scales.ang_vel,   #[1,3] 3
+                            imu_obs,    #[1,2] 2
+                            0*self.delta_yaw[:, None],  
                             self.delta_yaw[:, None],
-                            self.delta_next_yaw[:, None],
+                            self.delta_next_yaw[:, None], # 3
                             0*self.commands[:, 0:2], 
                             self.commands[:, 0:1],  #[1,1]
                             (self.env_class != 17).float()[:, None], 
-                            (self.env_class == 17).float()[:, None],
+                            (self.env_class == 17).float()[:, None], # 4
                             self.reindex((self.dof_pos - self.default_dof_pos_all) * self.obs_scales.dof_pos),
                             self.reindex(self.dof_vel * self.obs_scales.dof_vel),
-                            self.reindex(self.action_history_buf[:, -1]),
-                            self.reindex_feet(self.contact_filt.float()-0.5),
+                            self.reindex(self.action_history_buf[:, -1]), # 36
+                            self.reindex_feet(self.contact_filt.float()-0.5), # 4
                             ),dim=-1)
-        priv_explicit = torch.cat((self.base_lin_vel * self.obs_scales.lin_vel,
-                                   0 * self.base_lin_vel,
-                                   0 * self.base_lin_vel), dim=-1)
+        priv_explicit = torch.cat((self.base_lin_vel * self.obs_scales.lin_vel, # 3
+                                   0 * self.base_lin_vel, # 3
+                                   0 * self.base_lin_vel), dim=-1) # 3
         priv_latent = torch.cat((
-            self.mass_params_tensor,
-            self.friction_coeffs_tensor,
-            self.motor_strength[0] - 1, 
-            self.motor_strength[1] - 1
+            self.mass_params_tensor, # 4 质量+质心位置
+            self.friction_coeffs_tensor, # 1
+            self.motor_strength[0] - 1, # 12
+            self.motor_strength[1] - 1 # 12
         ), dim=-1)
-        if self.cfg.terrain.measure_heights:
-            heights = torch.clip(self.root_states[:, 2].unsqueeze(1) - 0.3 - self.measured_heights, -1, 1.)
+        if self.cfg.terrain.measure_heights: # 132
+            heights = torch.clip(self.root_states[:, 2].unsqueeze(1) - 0.3 - self.measured_heights, -1, 1.) # todo: need to tune
             self.obs_buf = torch.cat([obs_buf, heights, priv_explicit, priv_latent, self.obs_history_buf.view(self.num_envs, -1)], dim=-1)
         else:
             self.obs_buf = torch.cat([obs_buf, priv_explicit, priv_latent, self.obs_history_buf.view(self.num_envs, -1)], dim=-1)
-        obs_buf[:, 6:8] = 0  # mask yaw in proprioceptive history
+        obs_buf[:, 6:8] = 0  # mask yaw in proprioceptive history important!
         self.obs_history_buf = torch.where(
             (self.episode_length_buf <= 1)[:, None, None], 
             torch.stack([obs_buf] * self.cfg.env.history_len, dim=1),
@@ -678,7 +683,7 @@ class LeggedRobot(BaseTask):
         
         dis_to_origin = torch.norm(self.root_states[env_ids, :2] - self.env_origins[env_ids, :2], dim=1)
         threshold = self.commands[env_ids, 0] * self.cfg.env.episode_length_s
-        move_up =dis_to_origin > 0.8*threshold
+        move_up = dis_to_origin > 0.8*threshold
         move_down = dis_to_origin < 0.4*threshold
 
         self.terrain_levels[env_ids] += 1 * move_up - 1 * move_down
@@ -783,7 +788,7 @@ class LeggedRobot(BaseTask):
         if hasattr(self.cfg.env, "height_update_dt"):
             self.height_update_interval = int(self.cfg.env.height_update_dt / (self.cfg.sim.dt * self.cfg.control.decimation))
 
-        if self.cfg.depth.use_camera:
+        if self.cfg.depth.use_camera: ## camera
             self.depth_buffer = torch.zeros(self.num_envs,  
                                             self.cfg.depth.buffer_len, 
                                             self.cfg.depth.resized[1], 
@@ -928,7 +933,8 @@ class LeggedRobot(BaseTask):
         self.num_bodies = len(body_names)
         self.num_dofs = len(self.dof_names)
         feet_names = [s for s in body_names if self.cfg.asset.foot_name in s]
-
+        print("feet_names")
+        print(feet_names)
 
         for s in ["FR_foot", "FL_foot", "RR_foot", "RL_foot"]:
             feet_idx = self.gym.find_asset_rigid_body_index(robot_asset, s)
@@ -1236,7 +1242,7 @@ class LeggedRobot(BaseTask):
     
     def _reward_lin_vel_z(self):
         rew = torch.square(self.base_lin_vel[:, 2])
-        rew[self.env_class != 17] *= 0.5
+        rew[self.env_class != 17] *= 0.5 
         return rew
     
     def _reward_ang_vel_xy(self):
@@ -1268,8 +1274,10 @@ class LeggedRobot(BaseTask):
     def _reward_dof_error(self):
         dof_error = torch.sum(torch.square(self.dof_pos - self.default_dof_pos), dim=1)
         return dof_error
-    
+    ## todo：
     def _reward_feet_stumble(self):
+        # 检查水平接触力是否大于垂直接触力的 4 倍。
+        # 如果水平接触力过大，说明脚部可能与垂直表面发生了接触。
         # Penalize feet hitting vertical surfaces
         rew = torch.any(torch.norm(self.contact_forces[:, self.feet_indices, :2], dim=2) >\
              4 *torch.abs(self.contact_forces[:, self.feet_indices, 2]), dim=1)

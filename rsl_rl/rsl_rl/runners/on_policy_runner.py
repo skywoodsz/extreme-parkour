@@ -213,10 +213,18 @@ class OnPolicyRunner:
             else:
                 if it % (5*self.save_interval) == 0:
                     self.save(os.path.join(self.log_dir, 'model_{}.pt'.format(it)))
+
+            # save video
+            if self.env.cfg.video_logger.enable_video_logger:
+                if not os.path.exists(self.log_dir + "/videos"):
+                    os.mkdir(self.log_dir + "/videos")
+                self.env.log_video(it, self.log_dir)
+
             ep_infos.clear()
         
         # self.current_learning_iteration += num_learning_iterations
         self.save(os.path.join(self.log_dir, 'model_{}.pt'.format(self.current_learning_iteration)))
+
 
     def learn_vision(self, num_learning_iterations, init_at_random_ep_len=False):
         tot_iter = self.current_learning_iteration + num_learning_iterations
