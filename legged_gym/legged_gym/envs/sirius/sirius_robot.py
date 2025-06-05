@@ -364,7 +364,9 @@ class LeggedRobot(BaseTask):
         """ Check if environments need to be reset
         """
         # reset判断条件/safety check
-        self.reset_buf = torch.zeros((self.num_envs,), dtype=torch.bool, device=self.device)
+        # self.reset_buf = torch.zeros((self.num_envs,), dtype=torch.bool, device=self.device) # no contact terminate
+        self.reset_buf = torch.any(torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 1., dim=1)
+
         roll_cutoff = torch.abs(self.roll) > 1.5
         pitch_cutoff = torch.abs(self.pitch) > 1.5
         reach_goal_cutoff = self.cur_goal_idx >= self.cfg.terrain.num_goals
@@ -943,9 +945,11 @@ class LeggedRobot(BaseTask):
         penalized_contact_names = []
         for name in self.cfg.asset.penalize_contacts_on:
             penalized_contact_names.extend([s for s in body_names if name in s])
+        print(colorama.Fore.RED + f"penalized_contact_names: {penalized_contact_names}")
         termination_contact_names = []
         for name in self.cfg.asset.terminate_after_contacts_on:
             termination_contact_names.extend([s for s in body_names if name in s])
+        print(colorama.Fore.RED + f"termination_contact_names: {termination_contact_names}")
 
         base_init_state_list = self.cfg.init_state.pos + self.cfg.init_state.rot + self.cfg.init_state.lin_vel + self.cfg.init_state.ang_vel
 
