@@ -12,7 +12,7 @@ class video_logger:
     def save_video(self,iter,log_dir):
         print("saved!")
         path = log_dir + "/videos/{:05d}".format(iter)
-        save_video(self.frames,path, fps=1 / self.video_cfg.env_dt)
+        save_video(self.frames, path, fps=1 / self.video_cfg.env_dt)
 
     def is_complete(self):
         complete = False

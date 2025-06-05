@@ -21,14 +21,14 @@ cd extreme-parkour
 cd isaacgym/python && pip install -e .
 cd ~/extreme-parkour/rsl_rl && pip install -e .
 cd ~/extreme-parkour/legged_gym && pip install -e .
-pip install "numpy<1.24" pydelatin wandb tqdm opencv-python ipdb pyfqmr flask
+pip install "numpy<1.24" pydelatin wandb tqdm opencv-python ipdb pyfqmr flask colorama scikit-image imageio-ffmpeg imageio
 ```
 
 ### Usage ###
 `cd legged_gym/scripts`
 1. Train base policy:  
 ```bash
-python train.py --exptid xxx-xx-WHATEVER --device cuda:3 --headless 
+python train.py --exptid aaa-aa-sirius --device cuda:3 --headless 
 ```
 Train 10-15k iterations (8-10 hours on 3090) (at least 15k recommended).
 

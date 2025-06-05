@@ -64,6 +64,8 @@ def play(args):
 
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     # override some parameters for testing
+    env_cfg.video_logger.enable_video_logger = False
+    
     if args.nodelay:
         env_cfg.domain_rand.action_delay_view = 0
     env_cfg.env.num_envs = 16 if not args.save else 64

@@ -63,6 +63,7 @@ class LeggedRobot(BaseTask):
                     headless (bool): Run without rendering if True
         """
         colorama.init(autoreset=True) # for colorama
+        print(colorama.Fore.GREEN+ f"headless: {headless}")
 
         self.cfg = cfg
         self.sim_params = sim_params
@@ -74,6 +75,8 @@ class LeggedRobot(BaseTask):
         ## resize depth image
         self.resize_transform = torchvision.transforms.Resize((self.cfg.depth.resized[1], self.cfg.depth.resized[0]),
                                                               interpolation=torchvision.transforms.InterpolationMode.BICUBIC)
+
+        print(colorama.Fore.GREEN + f"enable_video_logger: {self.cfg.video_logger.enable_video_logger}")
 
         if not self.headless:
             self.set_camera(self.cfg.viewer.pos, self.cfg.viewer.lookat)
@@ -277,7 +280,7 @@ class LeggedRobot(BaseTask):
             self.motor_strength[1] - 1  # 12
         ), dim=-1)
 
-        if self.cfg.terrain.measure_heights:  # 132
+        if self.cfg.terrain.measure_heights:  # 132 # todo: 0.3 -> 0.4
             heights = torch.clip(self.root_states[:, 2].unsqueeze(1) - 0.3 - self.measured_heights, -1,
                                  1.)  # todo: need to tune
             self.obs_buf = torch.cat(

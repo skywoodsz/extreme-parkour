@@ -102,7 +102,7 @@ class LeggedRobotCfg( BaseConfig ):
 
         edge_width_thresh = 0.05  ## 距离edge多少起跳
 
-        horizontal_scale = 0.1  # [m] influence computation time by a lot
+        horizontal_scale = 0.05  # 0.1 [m] influence computation time by a lot
         horizontal_scale_camera = 0.1
         vertical_scale = 0.005  # [m]
         border_size = 5  # [m]
@@ -131,7 +131,7 @@ class LeggedRobotCfg( BaseConfig ):
         terrain_length = 18
         terrain_width = 4
         num_rows = 10  # number of terrain rows (levels)  # spreaded is benifitiall !
-        num_cols = 10  # number of terrain cols (types)
+        num_cols = 40  # number of terrain cols (types)
 
         # 训练地形占比
         terrain_dict = {"smooth slope": 0.,
@@ -310,8 +310,8 @@ class LeggedRobotCfg( BaseConfig ):
     class video_logger:
         sampled_env_id = 50
         enable_video_logger = True
-        video_log_interval = 50
-        video_length_in_sec = 10
+        video_log_interval = 50 # 100
+        video_length_in_sec = 5
         env_dt = 0.02
         canvas_size = [368, 240]
 
@@ -351,7 +351,7 @@ class SiruisParkourCfg( LeggedRobotCfg ):
 
     class rewards( LeggedRobotCfg.rewards ):
         soft_dof_pos_limit = 0.9
-        base_height_target = 0.25
+        base_height_target = 0.45
 
 ####################################################
 ####################### PPO ########################
@@ -414,7 +414,7 @@ class LeggedRobotCfgPPO(BaseConfig):
         policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24  # per iteration
-        max_iterations = 101  # number of policy updates origin: 50000, teacher:15001，student may be 15000 better, because I reduce the camera_num_envs from 192 to 64
+        max_iterations = 10001  # number of policy updates origin: 50000, teacher:15001，student may be 15000 better, because I reduce the camera_num_envs from 192 to 64
 
         # logging
         save_interval = 100  # check for potential saves every this many iterations
