@@ -34,7 +34,7 @@ Train 10-15k iterations (8-10 hours on 3090) (at least 15k recommended).
 
 2. Train distillation policy:
 ```bash
-python train.py --exptid yyy-yy-WHATEVER --device cuda:3 --resume --resumeid xxx-xx --delay --use_camera --headless --no_wandb
+python train.py --exptid yyy-yy-WHATEVER --device cuda:3 --resume --resumeid xxx-xx --delay --use_camera --headless 
 ```
 Train 5-10k iterations (5-10 hours on 3090) (at least 5k recommended). 
 >You can run either base or distillation policy at arbitary gpu # as long as you set `--device cuda:#`, no need to set `CUDA_VISIBLE_DEVICES`.

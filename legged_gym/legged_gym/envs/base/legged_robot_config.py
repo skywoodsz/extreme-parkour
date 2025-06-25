@@ -85,7 +85,7 @@ class LeggedRobotCfg(BaseConfig):
 
     class depth: ## camera setting
         use_camera = False
-        camera_num_envs = 64 # origin: 192 # only used for student policy
+        camera_num_envs = 192 # origin: 192 # only used for student policy
         camera_terrain_num_rows = 10 ## todo: means
         camera_terrain_num_cols = 20 ## todo: means
 
@@ -314,10 +314,6 @@ class LeggedRobotCfg(BaseConfig):
         base_height_target = 1.
         max_contact_force = 40. # forces above this value are penalized
 
-
-
-
-
     # viewer camera:
     class viewer:
         ref_env = 0
@@ -342,6 +338,10 @@ class LeggedRobotCfg(BaseConfig):
             max_gpu_contact_pairs = 2**23 #2**24 -> needed for 8000 envs and more
             default_buffer_size_multiplier = 5
             contact_collection = 2 # 0: never, 1: last sub-step, 2: all sub-steps (default=2)
+    
+    class video_logger:
+        enable_video_logger = False
+
 
 class LeggedRobotCfgPPO(BaseConfig):
     seed = 1
@@ -401,7 +401,7 @@ class LeggedRobotCfgPPO(BaseConfig):
         policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24 # per iteration
-        max_iterations = 15000 # number of policy updates origin: 50000, teacher:15000，student may be 15000 better, because I reduce the camera_num_envs from 192 to 64
+        max_iterations = 10001 # number of policy updates origin: 50000, teacher:15000，student may be 15000 better, because I reduce the camera_num_envs from 192 to 64
 
         # logging
         save_interval = 100 # check for potential saves every this many iterations

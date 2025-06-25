@@ -275,7 +275,13 @@ class OnPolicyRunner:
 
                 obs_student = obs.clone()
                 # obs_student[:, 6:8] = yaw.detach()
-                obs_student[infos["delta_yaw_ok"], 6:8] = yaw.detach()[infos["delta_yaw_ok"]]
+                # todo: use student yaw
+                # Note: Modify to distill wo direction 0609
+                # obs_student[infos["delta_yaw_ok"], 6:8] = yaw.detach()[infos["delta_yaw_ok"]]
+                
+                # Note: omit contact obs
+                obs_student[:, self.env.cfg.env.n_proprio-4:self.env.cfg.env.n_proprio] = 0 
+
                 delta_yaw_ok_buffer.append(torch.nonzero(infos["delta_yaw_ok"]).size(0) / infos["delta_yaw_ok"].numel())
                 actions_student = self.alg.depth_actor(obs_student, hist_encoding=True, scandots_latent=depth_latent)
                 actions_student_buffer.append(actions_student)
@@ -308,15 +314,30 @@ class OnPolicyRunner:
             scandots_latent_buffer = torch.cat(scandots_latent_buffer, dim=0)
             depth_latent_buffer = torch.cat(depth_latent_buffer, dim=0)
             depth_encoder_loss = 0
+            # Note: Modify to distill with direction and encoder 060901
             # depth_encoder_loss = self.alg.update_depth_encoder(depth_latent_buffer, scandots_latent_buffer)
 
             actions_teacher_buffer = torch.cat(actions_teacher_buffer, dim=0)
             actions_student_buffer = torch.cat(actions_student_buffer, dim=0)
             yaw_buffer_student = torch.cat(yaw_buffer_student, dim=0)
             yaw_buffer_teacher = torch.cat(yaw_buffer_teacher, dim=0)
-            depth_actor_loss, yaw_loss = self.alg.update_depth_actor(actions_student_buffer, actions_teacher_buffer, yaw_buffer_student, yaw_buffer_teacher)
+            # use the yaw and action to dstill the student ploicy
+            # Note: Modify to distill wo direction 0609
+            yaw_loss = 0
+            # depth_actor_loss, yaw_loss = self.alg.update_depth_actor(actions_student_buffer, actions_teacher_buffer, yaw_buffer_student, yaw_buffer_teacher)
 
+            # use the depth encoder and action to dstill the student ploicy
+            # Note: Modify to distill wo direction 0609
             # depth_encoder_loss, depth_actor_loss = self.alg.update_depth_both(depth_latent_buffer, scandots_latent_buffer, actions_student_buffer, actions_teacher_buffer)
+            
+            # Note: Modify to distill with direction and encoder 060901
+            # depth_encoder_loss, depth_actor_loss, yaw_loss = self.alg.update_depth_all(depth_latent_buffer, scandots_latent_buffer, 
+            #                           actions_student_buffer, actions_teacher_buffer, 
+            #                           yaw_buffer_student, yaw_buffer_teacher)
+
+            depth_actor_loss = self.alg.update_only_depth_actor(actions_student_buffer, actions_teacher_buffer) # refine
+        
+
             stop = time.time()
             learn_time = stop - start
 
@@ -328,6 +349,13 @@ class OnPolicyRunner:
                (it-self.start_learning_iteration < 5000 and it % (2*self.save_interval) == 0) or \
                (it-self.start_learning_iteration >= 5000 and it % (5*self.save_interval) == 0):
                     self.save(os.path.join(self.log_dir, 'model_{}.pt'.format(it)))
+            
+            # save video
+            if self.env.cfg.video_logger.enable_video_logger:
+                if not os.path.exists(self.log_dir + "/videos"):
+                    os.mkdir(self.log_dir + "/videos")
+                self.env.log_video(it, self.log_dir)
+            
             ep_infos.clear()
     
     def log_vision(self, locs, width=80, pad=35):

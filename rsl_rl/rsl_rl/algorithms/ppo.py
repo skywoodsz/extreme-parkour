@@ -348,6 +348,33 @@ class PPO:
             self.depth_actor_optimizer.step()
             return depth_encoder_loss.item(), depth_actor_loss.item()
     
+    def update_only_depth_actor(self, actions_student_batch, actions_teacher_batch):
+        if self.if_depth:
+            depth_actor_loss = (actions_teacher_batch.detach() - actions_student_batch).norm(p=2, dim=1).mean()
+
+            self.depth_actor_optimizer.zero_grad()
+            depth_actor_loss.backward()
+            nn.utils.clip_grad_norm_([*self.depth_actor.parameters(), *self.depth_encoder.parameters()], self.max_grad_norm)
+            self.depth_actor_optimizer.step()
+            return depth_actor_loss.item()
+    
+    # Note: Modify to distill with direction and encoder 060901
+    def update_depth_all(self, depth_latent_batch, scandots_latent_batch, 
+                         actions_student_batch, actions_teacher_batch,
+                         yaw_student_batch, yaw_teacher_batch):
+        if self.if_depth:
+            depth_encoder_loss = (scandots_latent_batch.detach() - depth_latent_batch).norm(p=2, dim=1).mean()
+            depth_actor_loss = (actions_teacher_batch.detach() - actions_student_batch).norm(p=2, dim=1).mean()
+            yaw_loss = (yaw_teacher_batch.detach() - yaw_student_batch).norm(p=2, dim=1).mean()
+
+            depth_loss = depth_encoder_loss + depth_actor_loss + yaw_loss
+
+            self.depth_actor_optimizer.zero_grad()
+            depth_loss.backward()
+            nn.utils.clip_grad_norm_([*self.depth_actor.parameters(), *self.depth_encoder.parameters()], self.max_grad_norm)
+            self.depth_actor_optimizer.step()
+            return depth_encoder_loss.item(), depth_actor_loss.item(), yaw_loss.item()
+
     def update_counter(self):
         self.counter += 1
     
