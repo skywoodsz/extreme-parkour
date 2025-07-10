@@ -266,10 +266,15 @@ class LeggedRobot(BaseTask):
             (self.env_class != 17).float()[:, None],
             (self.env_class == 17).float()[:, None],  # 4 # 最难的地形
             self.reindex((self.dof_pos - self.default_dof_pos_all) * self.obs_scales.dof_pos),
-            self.reindex(self.dof_vel * self.obs_scales.dof_vel),
+            self.reindex(self.dof_vel * self.obs_scales.dof_vel), # mask the velocity
             self.reindex(self.action_history_buf[:, -1]),  # 36
-            self.reindex_feet(self.contact_filt.float() - 0.5),  # 4
+            self.reindex_feet(self.contact_filt.float() - 0.5),  # mask the contact
         ), dim=-1)
+
+        if self.add_noise: # add noise
+            self.obs_buf += (2 * torch.rand_like(self.obs_buf) - 1) * self.noise_scale_vec
+
+
         priv_explicit = torch.cat((self.base_lin_vel * self.obs_scales.lin_vel,  # 3
                                    0 * self.base_lin_vel,  # 3
                                    0 * self.base_lin_vel), dim=-1)  # 3
@@ -409,6 +414,7 @@ class LeggedRobot(BaseTask):
         # initialize some data used later on
         self.common_step_counter = 0 # 跟踪整个仿真过程中执行的总时间步数
         self.extras = {}
+        self.noise_scale_vec = self._get_noise_scale_vec(self.cfg) # noise
         self.gravity_vec = to_torch(get_axis_params(-1., self.up_axis_idx), device=self.device).repeat(
             (self.num_envs, 1))
         self.forward_vec = to_torch([1., 0., 0.], device=self.device).repeat((self.num_envs, 1)) # for cmd
@@ -784,6 +790,24 @@ class LeggedRobot(BaseTask):
     #################################################################
     ##########################  class utils  ########################
     #################################################################
+    def _get_noise_scale_vec(self, cfg):
+        noise_vec = torch.zeros_like(self.obs_buf[0])
+        self.add_noise = self.cfg.noise.add_noise
+        noise_scales = self.cfg.noise.noise_scales
+        noise_level = self.cfg.noise.noise_level
+        noise_vec[:3] = noise_scales.ang_vel * noise_level * self.obs_scales.ang_vel # angular velocity
+        noise_vec[3:5] = noise_scales.rotation * noise_level # pitch and roll
+        noise_vec[5:8] = noise_scales.rotation * noise_level # yaw
+        noise_vec[8:13] = 0.0 # commands
+        noise_vec[13:25] = noise_scales.dof_pos * noise_level * self.obs_scales.dof_pos
+        noise_vec[25:37] = noise_scales.dof_vel * noise_level * self.obs_scales.dof_vel # mask the velocity
+        noise_vec[37:49] = 0.0 # previous actions
+        noise_vec[49:53] = 0.0 # contact
+        # todo: terrain measure_heights noises
+
+        return noise_vec
+
+
     def get_history_observations(self):
         return self.obs_history_buf
 
@@ -1429,3 +1453,14 @@ class LeggedRobot(BaseTask):
         self.feet_at_edge = self.contact_filt & feet_at_edge
         rew = (self.terrain_levels > 3) * torch.sum(self.feet_at_edge, dim=-1) # 只对大于3等级的进行惩罚
         return rew
+    
+    def _reward_dof_vel_limits(self):
+        return torch.sum((torch.abs(self.dof_vel) - self.dof_vel_limits*self.cfg.rewards.soft_dof_vel_limit).clip(min=0., max=1.), dim=1)
+
+    def _reward_dof_vel(self):
+        # Penalize dof velocities
+        return torch.sum(torch.square(self.dof_vel), dim=1)
+
+    def _reward_torque_limits(self):
+        # penalize torques too close to the limit
+        return torch.sum((torch.abs(self.torques) - self.torque_limits*self.cfg.rewards.soft_torque_limit).clip(min=0.), dim=1)

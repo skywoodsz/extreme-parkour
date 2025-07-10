@@ -130,6 +130,20 @@ class PPO:
             self.depth_actor = depth_actor
             self.depth_actor_optimizer = optim.Adam([*self.depth_actor.parameters(), *self.depth_encoder.parameters()], lr=depth_encoder_paras["learning_rate"])
 
+        # Fune tune
+        if 'fune_tune' in kwargs:
+            self.fune_tune = kwargs['fune_tune']
+        else:
+            self.fune_tune = False
+
+        if self.fune_tune:
+            self.fune_tune_actor_critic = actor_critic
+            self.fune_tune_actor_critic.to(self.device)
+            self.fune_tune_depth_encoder = depth_encoder
+            self.fune_tune_optimizer = optim.Adam([*self.fune_tune_actor_critic.parameters(), *self.fune_tune_depth_encoder.parameters()], lr=learning_rate)
+            self.fune_tune_transition = RolloutStorage.Transition()
+
+
     def init_storage(self, num_envs, num_transitions_per_env, actor_obs_shape, critic_obs_shape, action_shape):
         self.storage = RolloutStorage(num_envs, num_transitions_per_env, actor_obs_shape,  critic_obs_shape, action_shape, self.device)
 
@@ -374,6 +388,9 @@ class PPO:
             nn.utils.clip_grad_norm_([*self.depth_actor.parameters(), *self.depth_encoder.parameters()], self.max_grad_norm)
             self.depth_actor_optimizer.step()
             return depth_encoder_loss.item(), depth_actor_loss.item(), yaw_loss.item()
+    
+    def update_fune_tune_only_actor():
+        pass
 
     def update_counter(self):
         self.counter += 1

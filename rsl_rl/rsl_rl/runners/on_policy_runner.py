@@ -281,6 +281,8 @@ class OnPolicyRunner:
                 
                 # Note: omit contact obs
                 obs_student[:, self.env.cfg.env.n_proprio-4:self.env.cfg.env.n_proprio] = 0 
+                # Note: omit joint velocity
+                obs_student[:, 25:37] = 0 
 
                 delta_yaw_ok_buffer.append(torch.nonzero(infos["delta_yaw_ok"]).size(0) / infos["delta_yaw_ok"].numel())
                 actions_student = self.alg.depth_actor(obs_student, hist_encoding=True, scandots_latent=depth_latent)
@@ -357,6 +359,75 @@ class OnPolicyRunner:
                 self.env.log_video(it, self.log_dir)
             
             ep_infos.clear()
+
+    def learn_fine_tune(self, num_learning_iterations, init_at_random_ep_len=False):
+        mean_value_loss = 0.
+        mean_surrogate_loss = 0.
+        mean_estimator_loss = 0.
+        mean_disc_loss = 0.
+        mean_disc_acc = 0.
+        mean_hist_latent_loss = 0.
+        mean_priv_reg_loss = 0. 
+        priv_reg_coef = 0.
+        entropy_coef = 0.
+
+        if init_at_random_ep_len:
+            self.env.episode_length_buf = torch.randint_like(self.env.episode_length_buf, high=int(self.env.max_episode_length))
+        obs = self.env.get_observations()
+        privileged_obs = self.env.get_privileged_observations()
+        critic_obs = privileged_obs if privileged_obs is not None else obs
+        obs, critic_obs = obs.to(self.device), critic_obs.to(self.device)
+        infos = {}
+        infos["depth"] = self.env.depth_buffer.clone().to(self.device) if self.if_depth else None
+        infos["delta_yaw_ok"] = torch.ones(self.env.num_envs, dtype=torch.bool, device=self.device)
+        self.alg.fune_tune_actor_critic.train() # switch to train mode
+
+        ep_infos = []
+        rewbuffer = deque(maxlen=100)
+        rew_explr_buffer = deque(maxlen=100)
+        rew_entropy_buffer = deque(maxlen=100)
+        lenbuffer = deque(maxlen=100)
+        cur_reward_sum = torch.zeros(self.env.num_envs, dtype=torch.float, device=self.device)
+        cur_reward_explr_sum = torch.zeros(self.env.num_envs, dtype=torch.float, device=self.device)
+        cur_reward_entropy_sum = torch.zeros(self.env.num_envs, dtype=torch.float, device=self.device)
+        cur_episode_length = torch.zeros(self.env.num_envs, dtype=torch.float, device=self.device)
+
+        tot_iter = self.current_learning_iteration + num_learning_iterations
+        self.start_learning_iteration = copy(self.current_learning_iteration)
+
+        for it in range(self.current_learning_iteration, tot_iter):
+            start = time.time()
+
+            depth_latent_buffer = []
+            scandots_latent_buffer = []
+            actions_teacher_buffer = []
+            actions_student_buffer = []
+            yaw_buffer_student = []
+            yaw_buffer_teacher = []
+            delta_yaw_ok_buffer = []
+
+            for i in range(self.depth_encoder_cfg["num_steps_per_env"]):
+                if infos["depth"] != None:
+                    with torch.no_grad():
+                        scandots_latent = self.alg.actor_critic.actor.infer_scandots_latent(obs)
+                    scandots_latent_buffer.append(scandots_latent)
+                    obs_prop_depth = obs[:, :self.env.cfg.env.n_proprio].clone()
+                    obs_prop_depth[:, 6:8] = 0
+                    depth_latent_and_yaw = self.alg.fune_tune_depth_encoder(infos["depth"].clone(), obs_prop_depth)  # clone is crucial to avoid in-place operation
+
+                    depth_latent = depth_latent_and_yaw[:, :-2]
+                    yaw = 1.5*depth_latent_and_yaw[:, -2:]
+
+                    depth_latent_buffer.append(depth_latent)
+                    yaw_buffer_student.append(yaw)
+                    yaw_buffer_teacher.append(obs[:, 6:8])
+                # Rollout
+                with torch.inference_mode():
+                    pass
+                    # actions = self.alg.act(obs, critic_obs, infos, False)
+
+                
+
     
     def log_vision(self, locs, width=80, pad=35):
         self.tot_timesteps += self.num_steps_per_env * self.env.num_envs
@@ -549,6 +620,16 @@ class OnPolicyRunner:
             else:
                 print("No saved depth actor, Copying actor critic actor to depth actor...")
                 self.alg.depth_actor.load_state_dict(self.alg.actor_critic.actor.state_dict())
+
+        # Note: new feature, fine-tuning mode
+        if self.alg.fune_tune:
+            print("Fine-tuning mode enabled, copy teacher critic...")
+            self.alg.fune_tune_actor_critic.critic = deepcopy(self.alg.actor_critic.critic)
+            print("Fine-tuning mode enabled, copy student actor...")
+            self.alg.fune_tune_actor_critic.actor = deepcopy(self.alg.depth_actor)
+            print("Fine-tuning mode enabled, copy depth encoder...")
+            self.alg.fune_tune_depth_encoder = deepcopy(self.alg.depth_encoder)
+
         if load_optimizer:
             self.alg.optimizer.load_state_dict(loaded_dict['optimizer_state_dict'])
         # self.current_learning_iteration = loaded_dict['iter']

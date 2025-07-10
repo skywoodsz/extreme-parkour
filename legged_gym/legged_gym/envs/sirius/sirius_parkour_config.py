@@ -10,7 +10,7 @@ class LeggedRobotCfg( BaseConfig ):
         n_scan = 132
         n_priv = 3 + 3 + 3
         n_priv_latent = 4 + 1 + 12 + 12  # mass + CoM + Motor strength
-        n_proprio = 3 + 2 + 3 + 4 + 36 + 5  # todo: means
+        n_proprio = 3 + 2 + 3 + 4 + 36 + 5  # 
         history_len = 10
 
         num_observations = n_proprio + n_scan + history_len * n_proprio + n_priv_latent + n_priv  # n_scan + n_proprio + n_priv #187 + 47 + 5 + 12
@@ -47,12 +47,12 @@ class LeggedRobotCfg( BaseConfig ):
 
     class depth:  ## camera setting only used in student policy
         use_camera = False
-        camera_num_envs = 192  # origin: 192 # only used for student policy
+        camera_num_envs = 150  # origin: 192 # only used for student policy
         camera_terrain_num_rows = 10  
         camera_terrain_num_cols = 20  
 
         position = [0.45, 0, 0.03]  # front camera ## Notes: camera position w.r.t. body frame todo: need to tune
-        angle = [-5, 5]  # positive pitch down; random angle in pitch
+        angle = [20, 50]  # positive pitch down; random angle in pitch
 
         update_interval = 5  # 5 works without retraining, 8 worse
         original = (106, 60) # 原分辨率
@@ -69,7 +69,7 @@ class LeggedRobotCfg( BaseConfig ):
 
     class normalization:
         class obs_scales: # todo: need to tune
-            lin_vel = 2.0
+            lin_vel = 2.0 
             ang_vel = 0.25
             dof_pos = 1.0
             dof_vel = 0.05
@@ -79,16 +79,16 @@ class LeggedRobotCfg( BaseConfig ):
         clip_actions = 2.4 # 100? a1: 1.2 with action_scale = 0.25
 
     class noise:
-        add_noise = False
+        add_noise = False # false in the teacher policy, true in the student policy
         noise_level = 1.0  # scales other values
-        quantize_height = True
 
         class noise_scales:
             rotation = 0.0
             dof_pos = 0.01
-            dof_vel = 0.05
+            dof_vel = 1.50
+            ang_vel = 0.50
+            
             lin_vel = 0.05
-            ang_vel = 0.05
             gravity = 0.02
             height_measurements = 0.02
 
@@ -131,7 +131,7 @@ class LeggedRobotCfg( BaseConfig ):
         terrain_length = 18
         terrain_width = 4
         num_rows = 10  # number of terrain rows (levels)  # spreaded is benifitiall !
-        num_cols = 40  # number of terrain cols (types)
+        num_cols = 20  # number of terrain cols (types)
 
         # 训练地形占比
         terrain_dict = {"smooth slope": 0.,
@@ -268,17 +268,20 @@ class LeggedRobotCfg( BaseConfig ):
             collision = -10.
             action_rate = -0.1
             delta_torques = -1.0e-7
-            torques = -0.00001
+            torques = -0.0001 
             hip_pos = -0.5
             dof_error = -0.04
             feet_stumble = -1
             feet_edge = -1
+            # regularization jitter
+            dof_vel = -0.005
+            dof_vel_limits = -0.1
 
         only_positive_rewards = True # if true negative total rewards are clipped at zero (avoids early termination problems)
         tracking_sigma = 0.2 # tracking reward = exp(-error^2/sigma)
         soft_dof_pos_limit = 1. # percentage of urdf limits, values above this limit are penalized
-        soft_dof_vel_limit = 1
-        soft_torque_limit = 0.4 # unused
+        soft_dof_vel_limit = 0.8
+        soft_torque_limit = 0.6 
         base_height_target = 1. # unused
         max_contact_force = 40. # forces above this value are penalized # unused
 
@@ -309,8 +312,8 @@ class LeggedRobotCfg( BaseConfig ):
 
     class video_logger:
         sampled_env_id = 50
-        enable_video_logger = False
-        video_log_interval = 50 # 100 
+        enable_video_logger = True
+        video_log_interval = 100 # 100 
         video_length_in_sec = 5
         env_dt = 0.02
         canvas_size = [368, 240]
@@ -414,7 +417,7 @@ class LeggedRobotCfgPPO(BaseConfig):
         policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24  # per iteration
-        max_iterations = 2001  # number of policy updates origin: 50000, teacher:15001，student may be 15000 better, because I reduce the camera_num_envs from 192 to 64
+        max_iterations = 15001  # number of policy updates origin: 50000, teacher:15001，student may be 15000 better, because I reduce the camera_num_envs from 192 to 64
 
         # logging
         save_interval = 100  # check for potential saves every this many iterations
