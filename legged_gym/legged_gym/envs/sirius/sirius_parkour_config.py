@@ -47,9 +47,9 @@ class LeggedRobotCfg( BaseConfig ):
 
     class depth:  ## camera setting only used in student policy
         use_camera = False
-        camera_num_envs = 16  # origin: 192 # only used for student policy
-        camera_terrain_num_rows = 4
-        camera_terrain_num_cols = 4
+        camera_num_envs = 160  # origin: 192 # only used for student policy
+        camera_terrain_num_rows = 10
+        camera_terrain_num_cols = 20
 
         position = [0.45, 0, 0.03]  # front camera ## Notes: camera position w.r.t. body frame todo: need to tune
         angle = [20, 50]  # positive pitch down; random angle in pitch
@@ -420,7 +420,7 @@ class LeggedRobotCfgPPO(BaseConfig):
         policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24  # per iteration
-        max_iterations = 15001  # number of policy updates origin: 50000, teacher:15001，student may be 15000 better, because I reduce the camera_num_envs from 192 to 64
+        max_iterations = 5001  # number of policy updates origin: 50000, teacher:15001，student may be 15000 better, because I reduce the camera_num_envs from 192 to 64
 
         # logging
         save_interval = 100  # check for potential saves every this many iterations

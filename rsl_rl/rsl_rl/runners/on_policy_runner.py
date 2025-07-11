@@ -486,14 +486,14 @@ class OnPolicyRunner:
 
             # use the depth encoder and action to dstill the student ploicy
             # Note: Modify to distill wo direction 0609
-            # depth_encoder_loss, depth_actor_loss = self.alg.update_depth_both(depth_latent_buffer, scandots_latent_buffer, actions_student_buffer, actions_teacher_buffer)
+            depth_encoder_loss, depth_actor_loss = self.alg.update_depth_both(depth_latent_buffer, scandots_latent_buffer, actions_student_buffer, actions_teacher_buffer)
             
             # Note: Modify to distill with direction and encoder 060901
             # depth_encoder_loss, depth_actor_loss, yaw_loss = self.alg.update_depth_all(depth_latent_buffer, scandots_latent_buffer, 
             #                           actions_student_buffer, actions_teacher_buffer, 
             #                           yaw_buffer_student, yaw_buffer_teacher)
 
-            depth_actor_loss = self.alg.update_only_depth_actor(actions_student_buffer, actions_teacher_buffer) # refine
+            # depth_actor_loss = self.alg.update_only_depth_actor(actions_student_buffer, actions_teacher_buffer) # refine
         
 
             stop = time.time()

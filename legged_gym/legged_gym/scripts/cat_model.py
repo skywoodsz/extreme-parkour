@@ -109,7 +109,8 @@ def play():
         'estimator_state_dict': teacher_policy_estimator.state_dict(),
         'optimizer_state_dict': teacher_optimizer.state_dict(),
         'depth_encoder_state_dict': student_depth_encoder.state_dict(),
-        'depth_actor_state_dict': student_depth_actor.state_dict()
+        'depth_actor_state_dict': student_depth_actor.state_dict(),
+        'infos': None
     }
 
     torch.save(state_dict, save_cat_path)
