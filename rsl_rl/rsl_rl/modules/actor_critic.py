@@ -230,7 +230,6 @@ class ActorCriticRMA(nn.Module):
         activation = get_activation(activation)
         
         self.actor = Actor(num_prop, num_scan, num_actions, scan_encoder_dims, actor_hidden_dims, priv_encoder_dims, num_priv_latent, num_priv_explicit, num_hist, activation, tanh_encoder_output=kwargs['tanh_encoder_output'])
-        
 
         # Value function
         critic_layers = []
@@ -284,6 +283,15 @@ class ActorCriticRMA(nn.Module):
 
     def act(self, observations, hist_encoding=False, **kwargs):
         self.update_distribution(observations, hist_encoding)
+        return self.distribution.sample()
+
+    # Notes: new feature fine tune
+    def fine_tune_update_distribution(self, observations, hist_encoding, scandots_latent):
+        mean = self.actor(observations, hist_encoding, scandots_latent=scandots_latent)
+        self.distribution = Normal(mean, mean * 0. + self.std)
+
+    def fine_tune_act(self, observations, hist_encoding=False, scandots_latent=None, **kwargs):
+        self.fine_tune_update_distribution(observations, hist_encoding, scandots_latent)
         return self.distribution.sample()
     
     def get_actions_log_prob(self, actions):

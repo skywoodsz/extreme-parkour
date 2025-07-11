@@ -47,9 +47,9 @@ class LeggedRobotCfg( BaseConfig ):
 
     class depth:  ## camera setting only used in student policy
         use_camera = False
-        camera_num_envs = 150  # origin: 192 # only used for student policy
-        camera_terrain_num_rows = 10  
-        camera_terrain_num_cols = 20  
+        camera_num_envs = 16  # origin: 192 # only used for student policy
+        camera_terrain_num_rows = 4
+        camera_terrain_num_cols = 4
 
         position = [0.45, 0, 0.03]  # front camera ## Notes: camera position w.r.t. body frame todo: need to tune
         angle = [20, 50]  # positive pitch down; random angle in pitch
@@ -392,6 +392,9 @@ class LeggedRobotCfgPPO(BaseConfig):
         lam = 0.95
         desired_kl = 0.01
         max_grad_norm = 1.
+        # fine tune
+        fine_tune = True
+        teacher_alpha = 1.0 # todo: need to tune
         # dagger params
         dagger_update_freq = 20
         priv_reg_coef_schedual = [0, 0.1, 2000, 3000]

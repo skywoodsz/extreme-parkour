@@ -46,16 +46,21 @@ class RolloutStorage:
             self.action_mean = None
             self.action_sigma = None
             self.hidden_states = None
+            # for imitation learning
+            self.depth_latent = None
+            self.teacher_actions = None
         def clear(self):
             self.__init__()
 
-    def __init__(self, num_envs, num_transitions_per_env, obs_shape, privileged_obs_shape, actions_shape, device='cpu'):
+    def __init__(self, num_envs, num_transitions_per_env, obs_shape, privileged_obs_shape, actions_shape, device='cpu', fine_tune=False):
 
         self.device = device
 
         self.obs_shape = obs_shape
         self.privileged_obs_shape = privileged_obs_shape
         self.actions_shape = actions_shape
+
+        self.fine_tune = fine_tune
 
         # Core
         self.observations = torch.zeros(num_transitions_per_env, num_envs, *obs_shape, device=self.device)
@@ -75,6 +80,10 @@ class RolloutStorage:
         self.advantages = torch.zeros(num_transitions_per_env, num_envs, 1, device=self.device)
         self.mu = torch.zeros(num_transitions_per_env, num_envs, *actions_shape, device=self.device)
         self.sigma = torch.zeros(num_transitions_per_env, num_envs, *actions_shape, device=self.device)
+
+        # For Imitation
+        self.depth_latent = torch.zeros(num_transitions_per_env, num_envs, 32, device=self.device)
+        self.teacher_actions = torch.zeros(num_transitions_per_env, num_envs, *actions_shape, device=self.device)
 
         self.num_transitions_per_env = num_transitions_per_env
         self.num_envs = num_envs
@@ -97,6 +106,10 @@ class RolloutStorage:
         self.actions_log_prob[self.step].copy_(transition.actions_log_prob.view(-1, 1))
         self.mu[self.step].copy_(transition.action_mean)
         self.sigma[self.step].copy_(transition.action_sigma)
+
+        if self.fine_tune:
+            self.depth_latent[self.step].copy_(transition.depth_latent)
+            self.teacher_actions[self.step].copy_(transition.teacher_actions)
 
         self._save_hidden_states(transition.hidden_states)
         self.step += 1
@@ -171,6 +184,11 @@ class RolloutStorage:
         old_mu = self.mu.flatten(0, 1)
         old_sigma = self.sigma.flatten(0, 1)
 
+        # for imitation learning
+        if self.fine_tune:
+            depth_latent = self.depth_latent.flatten(0, 1)
+            teacher_actions = self.teacher_actions.flatten(0, 1)
+
         for epoch in range(num_epochs):
             for i in range(num_mini_batches):
 
@@ -187,10 +205,18 @@ class RolloutStorage:
                 advantages_batch = advantages[batch_idx]
                 old_mu_batch = old_mu[batch_idx]
                 old_sigma_batch = old_sigma[batch_idx]
+                # for imitation learning
+                if self.fine_tune:
+                    depth_latent_batch = depth_latent[batch_idx]
+                    teacher_actions_batch = teacher_actions[batch_idx]
 
-                
-                yield obs_batch, critic_observations_batch, actions_batch, target_values_batch, advantages_batch, returns_batch, \
-                       old_actions_log_prob_batch, old_mu_batch, old_sigma_batch, (None, None), None
+                if self.fine_tune:
+                    yield (obs_batch, critic_observations_batch, actions_batch, target_values_batch, advantages_batch, returns_batch, \
+                           old_actions_log_prob_batch, old_mu_batch, old_sigma_batch, depth_latent_batch, teacher_actions_batch, \
+                           (None, None), None)
+                else:
+                    yield (obs_batch, critic_observations_batch, actions_batch, target_values_batch, advantages_batch, returns_batch, \
+                           old_actions_log_prob_batch, old_mu_batch, old_sigma_batch, (None, None), None)
 
     # for RNNs only
     def reccurent_mini_batch_generator(self, num_mini_batches, num_epochs=8):
