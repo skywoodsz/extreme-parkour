@@ -413,7 +413,13 @@ class OnPolicyRunner:
                     with torch.no_grad():
                         scandots_latent = self.alg.actor_critic.actor.infer_scandots_latent(obs)
                     scandots_latent_buffer.append(scandots_latent)
-                    obs_prop_depth = obs[:, :self.env.cfg.env.n_proprio].clone()
+                    
+                    # obs_student fine tune in the depth encoder and actor
+                    obs_student = obs.clone()
+                    # Note: omit contact obs
+                    obs_student[:, self.env.cfg.env.n_proprio-4:self.env.cfg.env.n_proprio] = 0 
+
+                    obs_prop_depth = obs_student[:, :self.env.cfg.env.n_proprio].clone()
                     obs_prop_depth[:, 6:8] = 0
 
                     depth_latent_and_yaw = self.alg.depth_encoder(infos["depth"].clone(), obs_prop_depth)  # clone is crucial to avoid in-place operation
@@ -429,17 +435,11 @@ class OnPolicyRunner:
                     actions_teacher = self.alg.actor_critic.act_inference(obs, hist_encoding=True, scandots_latent=None)
                     actions_teacher_buffer.append(actions_teacher)
 
-                obs_student = obs.clone()
+               
                 # obs_student[:, 6:8] = yaw.detach()
                 # todo: use student yaw
                 # Note: Modify to distill wo direction 0609
                 # obs_student[infos["delta_yaw_ok"], 6:8] = yaw.detach()[infos["delta_yaw_ok"]]
-                
-                # Note: omit contact obs
-                obs_student[:, self.env.cfg.env.n_proprio-4:self.env.cfg.env.n_proprio] = 0 
-                # Note: omit joint velocity
-                obs_student[:, 25:37] = 0 
-
                 delta_yaw_ok_buffer.append(torch.nonzero(infos["delta_yaw_ok"]).size(0) / infos["delta_yaw_ok"].numel())
                 actions_student = self.alg.depth_actor(obs_student, hist_encoding=True, scandots_latent=depth_latent)
                 actions_student_buffer.append(actions_student)

@@ -393,7 +393,7 @@ class LeggedRobotCfgPPO(BaseConfig):
         desired_kl = 0.01
         max_grad_norm = 1.
         # fine tune
-        fine_tune = True
+        fine_tune = False
         teacher_alpha = 1.0 # todo: need to tune
         # dagger params
         dagger_update_freq = 20
