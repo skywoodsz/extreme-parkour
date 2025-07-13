@@ -266,9 +266,9 @@ class LeggedRobot(BaseTask):
             (self.env_class != 17).float()[:, None],
             (self.env_class == 17).float()[:, None],  # 4 # 最难的地形
             self.reindex((self.dof_pos - self.default_dof_pos_all) * self.obs_scales.dof_pos),
-            self.reindex(self.dof_vel * self.obs_scales.dof_vel), # mask the velocity
+            0 * (self.reindex(self.dof_vel * self.obs_scales.dof_vel)), # mask the velocity
             self.reindex(self.action_history_buf[:, -1]),  # 36
-            self.reindex_feet(self.contact_filt.float() - 0.5),  # mask the contact
+            0 * (self.reindex_feet(self.contact_filt.float() - 0.5)),  # mask the contact
         ), dim=-1)
 
         if self.add_noise: # add noise
@@ -800,7 +800,7 @@ class LeggedRobot(BaseTask):
         noise_vec[5:8] = noise_scales.rotation * noise_level # yaw
         noise_vec[8:13] = 0.0 # commands
         noise_vec[13:25] = noise_scales.dof_pos * noise_level * self.obs_scales.dof_pos
-        noise_vec[25:37] = noise_scales.dof_vel * noise_level * self.obs_scales.dof_vel # mask the velocity
+        noise_vec[25:37] = noise_scales.dof_vel * noise_level * self.obs_scales.dof_vel * 0 # mask the velocity
         noise_vec[37:49] = 0.0 # previous actions
         noise_vec[49:53] = 0.0 # contact
         # todo: terrain measure_heights noises

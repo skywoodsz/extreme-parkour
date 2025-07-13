@@ -292,6 +292,7 @@ class OnPolicyRunner:
         privileged_obs = self.env.get_privileged_observations()
         critic_obs = privileged_obs if privileged_obs is not None else obs
         obs, critic_obs = obs.to(self.device), critic_obs.to(self.device)
+
         infos = {}
         infos["depth"] = self.env.depth_buffer.clone().to(self.device) if self.if_depth else None
         self.alg.actor_critic.train() # switch to train mode (for dropout for example)
@@ -417,7 +418,7 @@ class OnPolicyRunner:
                     # obs_student fine tune in the depth encoder and actor
                     obs_student = obs.clone()
                     # Note: omit contact obs
-                    obs_student[:, self.env.cfg.env.n_proprio-4:self.env.cfg.env.n_proprio] = 0 
+                    # obs_student[:, self.env.cfg.env.n_proprio-4:self.env.cfg.env.n_proprio] = 0 
 
                     obs_prop_depth = obs_student[:, :self.env.cfg.env.n_proprio].clone()
                     obs_prop_depth[:, 6:8] = 0

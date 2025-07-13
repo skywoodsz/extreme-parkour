@@ -5,12 +5,12 @@ class LeggedRobotCfg( BaseConfig ):
         load_student_config = False
         mask_priv_obs = False
     class env:
-        num_envs = 4096  # origin: 6144; teacher: 4096; only used for teacher policy
+        num_envs = 2048  # origin: 6144; teacher: 4096; only used for teacher policy
 
         n_scan = 132
         n_priv = 3 + 3 + 3
         n_priv_latent = 4 + 1 + 12 + 12  # mass + CoM + Motor strength
-        n_proprio = 3 + 2 + 3 + 4 + 36 + 5  # 
+        n_proprio = 3 + 2 + 3 + 4 + 36 + 5  
         history_len = 10
 
         num_observations = n_proprio + n_scan + history_len * n_proprio + n_priv_latent + n_priv  # n_scan + n_proprio + n_priv #187 + 47 + 5 + 12
@@ -79,7 +79,7 @@ class LeggedRobotCfg( BaseConfig ):
         clip_actions = 2.4 # 100? a1: 1.2 with action_scale = 0.25
 
     class noise:
-        add_noise = False # false in the teacher policy, true in the student policy
+        add_noise = True 
         noise_level = 1.0  # scales other values
 
         class noise_scales:
@@ -420,7 +420,7 @@ class LeggedRobotCfgPPO(BaseConfig):
         policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24  # per iteration
-        max_iterations = 5001  # number of policy updates origin: 50000, teacher:15001，student may be 15000 better, because I reduce the camera_num_envs from 192 to 64
+        max_iterations = 15001  # number of policy updates origin: 50000, teacher:15001，student may be 15000 better, because I reduce the camera_num_envs from 192 to 64
 
         # logging
         save_interval = 100  # check for potential saves every this many iterations
