@@ -52,7 +52,7 @@ class LeggedRobotCfg( BaseConfig ):
         camera_terrain_num_cols = 20  
 
         position = [0.45, 0, 0.03]  # front camera ## Notes: camera position w.r.t. body frame todo: need to tune
-        angle = [-5, 5]  # positive pitch down; random angle in pitch
+        angle = [20, 50]  # positive pitch down; random angle in pitch
 
         update_interval = 5  # 5 works without retraining, 8 worse
         original = (106, 60) # 原分辨率
@@ -79,7 +79,7 @@ class LeggedRobotCfg( BaseConfig ):
         clip_actions = 2.4 # 100? a1: 1.2 with action_scale = 0.25
 
     class noise:
-        add_noise = False
+        add_noise = True 
         noise_level = 1.0  # scales other values
         quantize_height = True
 
@@ -87,8 +87,9 @@ class LeggedRobotCfg( BaseConfig ):
             rotation = 0.0
             dof_pos = 0.01
             dof_vel = 0.05
+            ang_vel = 0.50
+            
             lin_vel = 0.05
-            ang_vel = 0.05
             gravity = 0.02
             height_measurements = 0.02
 
@@ -273,6 +274,9 @@ class LeggedRobotCfg( BaseConfig ):
             dof_error = -0.04
             feet_stumble = -1
             feet_edge = -1
+            # regularization jitter
+            dof_vel = -0.005
+            dof_vel_limits = -0.1
 
         only_positive_rewards = True # if true negative total rewards are clipped at zero (avoids early termination problems)
         tracking_sigma = 0.2 # tracking reward = exp(-error^2/sigma)
@@ -414,7 +418,7 @@ class LeggedRobotCfgPPO(BaseConfig):
         policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24  # per iteration
-        max_iterations = 2001  # number of policy updates origin: 50000, teacher:15001，student may be 15000 better, because I reduce the camera_num_envs from 192 to 64
+        max_iterations = 5001  # number of policy updates origin: 50000, teacher:15001，student may be 15000 better, because I reduce the camera_num_envs from 192 to 64
 
         # logging
         save_interval = 100  # check for potential saves every this many iterations

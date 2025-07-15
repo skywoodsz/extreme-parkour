@@ -280,7 +280,7 @@ class OnPolicyRunner:
                 # obs_student[infos["delta_yaw_ok"], 6:8] = yaw.detach()[infos["delta_yaw_ok"]]
                 
                 # Note: omit contact obs
-                obs_student[:, self.env.cfg.env.n_proprio-4:self.env.cfg.env.n_proprio] = 0 
+                # obs_student[:, self.env.cfg.env.n_proprio-4:self.env.cfg.env.n_proprio] = 0 
 
                 delta_yaw_ok_buffer.append(torch.nonzero(infos["delta_yaw_ok"]).size(0) / infos["delta_yaw_ok"].numel())
                 actions_student = self.alg.depth_actor(obs_student, hist_encoding=True, scandots_latent=depth_latent)
@@ -293,7 +293,7 @@ class OnPolicyRunner:
                     obs, privileged_obs, rewards, dones, infos = self.env.step(actions_student.detach())  # obs has changed to next_obs !! if done obs has been reset
                 critic_obs = privileged_obs if privileged_obs is not None else obs
                 obs, critic_obs, rewards, dones = obs.to(self.device), critic_obs.to(self.device), rewards.to(self.device), dones.to(self.device)
-
+            
                 if self.log_dir is not None:
                         # Book keeping
                         if 'episode' in infos:
@@ -328,14 +328,14 @@ class OnPolicyRunner:
 
             # use the depth encoder and action to dstill the student ploicy
             # Note: Modify to distill wo direction 0609
-            # depth_encoder_loss, depth_actor_loss = self.alg.update_depth_both(depth_latent_buffer, scandots_latent_buffer, actions_student_buffer, actions_teacher_buffer)
+            depth_encoder_loss, depth_actor_loss = self.alg.update_depth_both(depth_latent_buffer, scandots_latent_buffer, actions_student_buffer, actions_teacher_buffer)
             
             # Note: Modify to distill with direction and encoder 060901
             # depth_encoder_loss, depth_actor_loss, yaw_loss = self.alg.update_depth_all(depth_latent_buffer, scandots_latent_buffer, 
             #                           actions_student_buffer, actions_teacher_buffer, 
             #                           yaw_buffer_student, yaw_buffer_teacher)
 
-            depth_actor_loss = self.alg.update_only_depth_actor(actions_student_buffer, actions_teacher_buffer) # refine
+            # depth_actor_loss = self.alg.update_only_depth_actor(actions_student_buffer, actions_teacher_buffer) # refine
         
 
             stop = time.time()
@@ -552,6 +552,7 @@ class OnPolicyRunner:
         if load_optimizer:
             self.alg.optimizer.load_state_dict(loaded_dict['optimizer_state_dict'])
         # self.current_learning_iteration = loaded_dict['iter']
+        self.current_learning_iteration = 2300
         print("*" * 80)
         return loaded_dict['infos']
 
