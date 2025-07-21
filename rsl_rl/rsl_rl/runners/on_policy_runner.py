@@ -552,7 +552,6 @@ class OnPolicyRunner:
         if load_optimizer:
             self.alg.optimizer.load_state_dict(loaded_dict['optimizer_state_dict'])
         # self.current_learning_iteration = loaded_dict['iter']
-        self.current_learning_iteration = 2300
         print("*" * 80)
         return loaded_dict['infos']
 
