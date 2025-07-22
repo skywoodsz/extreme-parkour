@@ -56,11 +56,11 @@ def train(args):
     if args.no_wandb:
         mode = "disabled"
 
-    wandb.init(project="parkour", name=args.exptid,
+    wandb.init(project="legged_wheel_parkour", name=args.exptid,
                entity="skywoodszcn-the-chinese-university-of-hong-kong",
                group=args.exptid[:3], mode=mode, dir="../../logs")
-    wandb.save(LEGGED_GYM_ENVS_DIR + "/sirius/sirius_parkour_config.py", policy="now")
-    wandb.save(LEGGED_GYM_ENVS_DIR + "/sirius/sirius_robot.py", policy="now")
+    wandb.save(LEGGED_GYM_ENVS_DIR + "/sirius_wheel/sirius_wheel_parkour_config.py", policy="now")
+    wandb.save(LEGGED_GYM_ENVS_DIR + "/sirius_wheel/sirius_wheel_robot.py", policy="now")
     project_dir = os.path.dirname(LEGGED_GYM_ROOT_DIR)
     wandb.save(project_dir + "/rsl_rl/rsl_rl/runners/on_policy_runner.py", policy="now")
 

@@ -156,6 +156,7 @@ class OnPolicyRunner:
 
         for it in range(self.current_learning_iteration, tot_iter):
             start = time.time()
+            self.iter = it
             hist_encoding = it % self.dagger_update_freq == 0
 
             # Rollout
@@ -246,6 +247,7 @@ class OnPolicyRunner:
         num_pretrain_iter = 0
         for it in range(self.current_learning_iteration, tot_iter):
             start = time.time()
+            self.iter = it
             depth_latent_buffer = []
             scandots_latent_buffer = []
             actions_teacher_buffer = []
@@ -523,7 +525,7 @@ class OnPolicyRunner:
             'model_state_dict': self.alg.actor_critic.state_dict(),
             'estimator_state_dict': self.alg.estimator.state_dict(),
             'optimizer_state_dict': self.alg.optimizer.state_dict(),
-            'iter': self.current_learning_iteration,
+            'iter': self.iter,
             'infos': infos,
             }
         if self.if_depth:
@@ -551,8 +553,7 @@ class OnPolicyRunner:
                 self.alg.depth_actor.load_state_dict(self.alg.actor_critic.actor.state_dict())
         if load_optimizer:
             self.alg.optimizer.load_state_dict(loaded_dict['optimizer_state_dict'])
-        # self.current_learning_iteration = loaded_dict['iter']
-        # self.current_learning_iteration = 4800
+        self.current_learning_iteration = loaded_dict['iter']
         print("*" * 80)
         return loaded_dict['infos']
 
