@@ -253,7 +253,7 @@ class Terrain:
             x_range = [-0.1, 0.1+0.3*difficulty]  # offset to stone_len
             y_range = [0.2, 0.3+0.1*difficulty]
             stone_len = [0.9 - 0.3*difficulty, 1 - 0.2*difficulty]#2 * round((0.6) / 2.0, 1)
-            incline_height = 0.25*difficulty
+            incline_height = 0.25*difficulty 
             last_incline_height = incline_height + 0.1 - 0.1*difficulty
             parkour_terrain(terrain,
                             num_stones=self.num_goals - 2,
@@ -321,6 +321,27 @@ class Terrain:
             idx = 20
             demo_terrain(terrain)
             self.add_roughness(terrain)
+        elif choice < self.proportions[20]: # wall
+            idx = 21
+            x_range = [1.0-difficulty, 1.1] #  # [-0.5, 0.5]
+            y_range = [0.5, 0.6+0.4*difficulty] #  #[0.2, 1]
+            wall_len = [2-difficulty, 2.1-difficulty] # 
+
+            if difficulty < 0.5: # 45
+                wall_width = 1
+                wall_height = 2 * difficulty
+            else:
+                wall_height = 1
+                wall_width = 1.2 - difficulty
+
+            parkour_wall_terrain(terrain,
+                                 x_range=x_range,
+                                 y_range=y_range,
+                                 wall_len=wall_len,
+                                 wall_width=wall_width,
+                                 wall_height=wall_height)
+            self.add_roughness(terrain)
+
         # np.set_printoptions(precision=2)
         # print(np.array(self.proportions), choice)
         terrain.idx = idx
@@ -414,6 +435,63 @@ def gap_parkour_terrain(terrain, difficulty, platform_size=2.):
     #             height = scale * (-(slope_angle * np.abs(j - w)) + offset)
     #             if terrain.height_field_raw[i, j] < height:
     #                 terrain.height_field_raw[i, j] = int(height)
+
+def parkour_wall_terrain(terrain,
+                         platform_len=2.5, 
+                         x_range=[0.1, 0.2], 
+                         y_range=[0.5, 1.0], 
+                         wall_len=[2.0, 2.1],
+                         wall_width=0.6,
+                         wall_height=1.0
+                         ):
+    '''
+    随机: wall的角度和宽度,距离xy, 
+    platform: 出发前的平台
+    stone:要跳跃的墙
+    pad: 环境四周隔离
+    '''
+    goals = np.zeros((3, 2)) # 3, 2
+
+    terrain.height_field_raw[:] = 0
+
+    mid_y = terrain.length // 2 
+    wall_len = np.random.uniform(*wall_len)
+    wall_len = 2 * round(wall_len / 2.0, 1)
+    wall_len = round(wall_len / terrain.horizontal_scale)
+    wall_width = round(wall_width / terrain.horizontal_scale)
+    wall_height = round(wall_height / terrain.vertical_scale)
+    platform_len = round(platform_len / terrain.horizontal_scale)
+    dis_x_min = wall_len + round(x_range[0] / terrain.horizontal_scale)
+    dis_x_max = wall_len + round(x_range[1] / terrain.horizontal_scale)
+    dis_y_min = round(y_range[0] / terrain.horizontal_scale)
+    dis_y_max = round(y_range[1] / terrain.horizontal_scale)
+    
+    # 起点
+    dis_x = platform_len - np.random.randint(dis_x_min, dis_x_max) + wall_len // 2 # 开始的远近
+    goals[0] = [platform_len -  wall_len // 2, mid_y] # 出发点
+
+    left_right_flag = np.random.randint(0, 2) # 随机左右
+    pos_neg = round(2*(left_right_flag - 0.5)) # 1 -1
+    
+    # wall point
+    dis_x += np.random.randint(dis_x_min, dis_x_max)
+    dis_y = mid_y + pos_neg * np.random.randint(dis_y_min, dis_y_max)
+
+    if pos_neg == 1: 
+        heights = np.tile(np.linspace(0.0, wall_height, wall_width), (wall_len, 1)) 
+    else: 
+        heights = np.tile(np.linspace(wall_height, 0.0, wall_width), (wall_len, 1)) 
+    
+    terrain.height_field_raw[dis_x-wall_len//2:dis_x+wall_len//2, dis_y-wall_width//2: int(dis_y+ wall_width/2 + 0.5)] = heights.astype(int)
+    goals[1] = [dis_x, dis_y]
+
+    # 终点
+    final_dis_x = dis_x + wall_len 
+    goals[-1] = [final_dis_x, mid_y]
+
+    terrain.goals = goals * terrain.horizontal_scale
+
+
 
 def parkour_terrain(terrain, 
                     platform_len=2.5, 

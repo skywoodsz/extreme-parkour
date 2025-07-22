@@ -41,10 +41,39 @@ import torch
 
 def test_env(args):
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
-    # override some parameters for testing
-    env_cfg.env.num_envs =  min(env_cfg.env.num_envs, 10)
+    env_cfg.env.num_envs =  10
 
-    # prepare environment
+    env_cfg.env.episode_length_s = 60
+    env_cfg.commands.resampling_time = 60
+    env_cfg.terrain.num_rows = 10
+    env_cfg.terrain.num_cols = 1
+    env_cfg.terrain.height = [0.02, 0.02]
+    env_cfg.terrain.terrain_dict = {"smooth slope": 0.0,
+                                    "rough slope up": 0.0,
+                                    "rough slope down": 0.0,
+                                    "rough stairs up": 0.,
+                                    "rough stairs down": 0.,
+                                    "discrete": 0.,
+                                    "stepping stones": 0.0,
+                                    "gaps": 0.,
+                                    "smooth flat": 0,
+                                    "pit": 0.0,
+                                    "wall": 0.0,
+                                    "platform": 0.,
+                                    "large stairs up": 0.,
+                                    "large stairs down": 0.,
+                                    "parkour": 0.0,
+                                    "parkour_hurdle": 0.0,
+                                    "parkour_flat": 0.0,
+                                    "parkour_step": 0.0,
+                                    "parkour_gap": 0.0,
+                                    "demo": 0.0,
+                                    "parkour_wall": 1.0}
+    
+    env_cfg.terrain.terrain_proportions = list(env_cfg.terrain.terrain_dict.values())
+    env_cfg.terrain.curriculum = True
+    env_cfg.terrain.max_difficulty = True
+
     env, _ = task_registry.make_env(name=args.task, args=args, env_cfg=env_cfg)
     for i in range(int(10*env.max_episode_length)):
         actions = 0.*torch.ones(env.num_envs, env.num_actions, device=env.device)

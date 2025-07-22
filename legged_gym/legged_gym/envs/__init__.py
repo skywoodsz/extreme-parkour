@@ -41,9 +41,10 @@ from legged_gym import LEGGED_GYM_ROOT_DIR, LEGGED_GYM_ENVS_DIR
 # from .a1.a1_parkour_config import A1ParkourCfg, A1ParkourCfgPPO
 # from .go1.go1_config import Go1RoughCfg, Go1RoughCfgPPO
 
-from .sirius.sirius_robot import LeggedRobot as SiriusLeggedRobot
-from .sirius.sirius_parkour_config import SiruisParkourCfg, SiriusParkourCfgPPO
-
+# from .sirius.sirius_robot import LeggedRobot as SiriusLeggedRobot
+# from .sirius.sirius_parkour_config import SiruisParkourCfg, SiriusParkourCfgPPO
+from .sirius_wheel.sirius_wheel_parkour_config import SiruisWheelParkourCfg, SiriusWheelParkourCfgPPO
+from .sirius_wheel.sirius_wheel_robot import LeggedRobot as SiriusWheelLeggedRobot
 import os
 
 from legged_gym.utils.task_registry import task_registry
@@ -53,7 +54,8 @@ from legged_gym.utils.task_registry import task_registry
 # task_registry.register( "anymal_b", Anymal, AnymalBRoughCfg(), AnymalBRoughCfgPPO() )
 # task_registry.register( "cassie", Cassie, CassieRoughCfg(), CassieRoughCfgPPO() )
 # task_registry.register( "go1", LeggedRobot, Go1RoughCfg(), Go1RoughCfgPPO() )
-
 # task_registry.register( "a1", LeggedRobot, A1ParkourCfg(), A1ParkourCfgPPO() )
 
-task_registry.register("sirius", SiriusLeggedRobot, SiruisParkourCfg(), SiriusParkourCfgPPO())
+# task_registry.register("sirius", SiriusLeggedRobot, SiruisParkourCfg(), SiriusParkourCfgPPO())
+
+task_registry.register("sirius_wheel", SiriusWheelLeggedRobot, SiruisWheelParkourCfg(), SiriusWheelParkourCfgPPO())
