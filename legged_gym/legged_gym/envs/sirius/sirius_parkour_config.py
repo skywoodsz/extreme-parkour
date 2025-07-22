@@ -76,7 +76,7 @@ class LeggedRobotCfg( BaseConfig ):
             height_measurements = 5.0
 
         clip_observations = 100.
-        clip_actions = 2.4 # 100? a1: 1.2 with action_scale = 0.25
+        clip_actions = 100 # 2.4
 
     class noise:
         add_noise = True 
@@ -281,8 +281,8 @@ class LeggedRobotCfg( BaseConfig ):
         only_positive_rewards = True # if true negative total rewards are clipped at zero (avoids early termination problems)
         tracking_sigma = 0.2 # tracking reward = exp(-error^2/sigma)
         soft_dof_pos_limit = 1. # percentage of urdf limits, values above this limit are penalized
-        soft_dof_vel_limit = 1
-        soft_torque_limit = 0.4 # unused
+        soft_dof_vel_limit = 0.8
+        soft_torque_limit = 0.4 # unusedd
         base_height_target = 1. # unused
         max_contact_force = 40. # forces above this value are penalized # unused
 
@@ -313,7 +313,7 @@ class LeggedRobotCfg( BaseConfig ):
 
     class video_logger:
         sampled_env_id = 50
-        enable_video_logger = False
+        enable_video_logger = True
         video_log_interval = 50 # 100 
         video_length_in_sec = 5
         env_dt = 0.02
@@ -418,7 +418,7 @@ class LeggedRobotCfgPPO(BaseConfig):
         policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24  # per iteration
-        max_iterations = 5001  # number of policy updates origin: 50000, teacher:15001，student may be 15000 better, because I reduce the camera_num_envs from 192 to 64
+        max_iterations = 15001  # number of policy updates origin: 50000, teacher:15001，student may be 15000 better, because I reduce the camera_num_envs from 192 to 64
 
         # logging
         save_interval = 100  # check for potential saves every this many iterations
