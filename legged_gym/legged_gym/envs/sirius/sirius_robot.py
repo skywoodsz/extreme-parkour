@@ -268,7 +268,7 @@ class LeggedRobot(BaseTask):
             self.reindex((self.dof_pos - self.default_dof_pos_all) * self.obs_scales.dof_pos),
             (self.reindex(self.dof_vel * self.obs_scales.dof_vel)),
             self.reindex(self.action_history_buf[:, -1]),  # 36
-            0 * (self.reindex_feet(self.contact_filt.float() - 0.5)),  # 4
+            (self.reindex_feet(self.contact_filt.float() - 0.5)),  # 4
         ), dim=-1)
 
         if self.add_noise: # add noise
@@ -1358,7 +1358,7 @@ class LeggedRobot(BaseTask):
 
         dis_to_origin = torch.norm(self.root_states[env_ids, :2] - self.env_origins[env_ids, :2], dim=1)
         threshold = self.commands[env_ids, 0] * self.cfg.env.episode_length_s
-        move_up = dis_to_origin > 0.6*threshold
+        move_up = dis_to_origin > 0.8*threshold
         move_down = dis_to_origin < 0.4*threshold
 
         self.terrain_levels[env_ids] += 1 * move_up - 1 * move_down
@@ -1458,3 +1458,7 @@ class LeggedRobot(BaseTask):
         
     def _reward_dof_vel(self):
         return torch.sum(torch.square(self.dof_vel), dim=1)
+    
+    def _reward_torque_limits(self):
+        # penalize torques too close to the limit
+        return torch.sum((torch.abs(self.torques) - self.torque_limits*self.cfg.rewards.soft_torque_limit).clip(min=0.), dim=1)

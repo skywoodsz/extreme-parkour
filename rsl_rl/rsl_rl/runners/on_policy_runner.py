@@ -63,6 +63,7 @@ class OnPolicyRunner:
         self.depth_encoder_cfg = train_cfg["depth_encoder"]
         self.device = device
         self.env = env
+        self.entropy_coef = self.alg_cfg["entropy_coef"]
 
         print("Using MLP and Priviliged Env encoder ActorCritic structure")
         actor_critic: ActorCriticRMA = ActorCriticRMA(self.env.cfg.env.n_proprio,
@@ -72,6 +73,7 @@ class OnPolicyRunner:
                                                       self.env.cfg.env.n_priv,
                                                       self.env.cfg.env.history_len,
                                                       self.env.num_actions,
+                                                      entropy_coef = self.entropy_coef,
                                                       **self.policy_cfg).to(self.device)
         estimator = Estimator(input_dim=env.cfg.env.n_proprio, output_dim=env.cfg.env.n_priv, hidden_dims=self.estimator_cfg["hidden_dims"]).to(self.device)
         # Depth encoder
@@ -116,6 +118,7 @@ class OnPolicyRunner:
         self.tot_timesteps = 0
         self.tot_time = 0
         self.current_learning_iteration = 0
+        self.iter = 0
         
 
     def learn_RL(self, num_learning_iterations, init_at_random_ep_len=False):
@@ -127,7 +130,7 @@ class OnPolicyRunner:
         mean_hist_latent_loss = 0.
         mean_priv_reg_loss = 0. 
         priv_reg_coef = 0.
-        entropy_coef = 0.
+        entropy_coef = self.entropy_coef
         # initialize writer
         # if self.log_dir is not None and self.writer is None:
         #     self.writer = SummaryWriter(log_dir=self.log_dir, flush_secs=10)
@@ -155,6 +158,7 @@ class OnPolicyRunner:
         self.start_learning_iteration = copy(self.current_learning_iteration)
 
         for it in range(self.current_learning_iteration, tot_iter):
+            self.iter = it
             start = time.time()
             hist_encoding = it % self.dagger_update_freq == 0
 
@@ -245,6 +249,7 @@ class OnPolicyRunner:
 
         num_pretrain_iter = 0
         for it in range(self.current_learning_iteration, tot_iter):
+            self.iter = it
             start = time.time()
             depth_latent_buffer = []
             scandots_latent_buffer = []
@@ -523,7 +528,7 @@ class OnPolicyRunner:
             'model_state_dict': self.alg.actor_critic.state_dict(),
             'estimator_state_dict': self.alg.estimator.state_dict(),
             'optimizer_state_dict': self.alg.optimizer.state_dict(),
-            'iter': self.current_learning_iteration,
+            'iter': self.iter,
             'infos': infos,
             }
         if self.if_depth:
@@ -552,7 +557,6 @@ class OnPolicyRunner:
         if load_optimizer:
             self.alg.optimizer.load_state_dict(loaded_dict['optimizer_state_dict'])
         # self.current_learning_iteration = loaded_dict['iter']
-        # self.current_learning_iteration = 4800
         print("*" * 80)
         return loaded_dict['infos']
 

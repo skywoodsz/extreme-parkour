@@ -79,7 +79,7 @@ class LeggedRobotCfg( BaseConfig ):
         clip_actions = 100 # 2.4
 
     class noise:
-        add_noise = True 
+        add_noise = False 
         noise_level = 1.0  # scales other values
         quantize_height = True
 
@@ -149,10 +149,10 @@ class LeggedRobotCfg( BaseConfig ):
                         "platform": 0.,
                         "large stairs up": 0.,
                         "large stairs down": 0.,
-                        "parkour": 0.2,
-                        "parkour_hurdle": 0.2,
+                        "parkour": 0.0,
+                        "parkour_hurdle": 0.3,
                         "parkour_flat": 0.2,
-                        "parkour_step": 0.2,
+                        "parkour_step": 0.3,
                         "parkour_gap": 0.2,
                         "demo": 0.0, }
         terrain_proportions = list(terrain_dict.values())
@@ -277,12 +277,13 @@ class LeggedRobotCfg( BaseConfig ):
             # regularization jitter
             dof_vel = -0.005
             dof_vel_limits = -0.1
+            torque_limits = 0.0
 
         only_positive_rewards = True # if true negative total rewards are clipped at zero (avoids early termination problems)
         tracking_sigma = 0.2 # tracking reward = exp(-error^2/sigma)
         soft_dof_pos_limit = 1. # percentage of urdf limits, values above this limit are penalized
         soft_dof_vel_limit = 0.8
-        soft_torque_limit = 0.4 # unusedd
+        soft_torque_limit = 0.8 
         base_height_target = 1. # unused
         max_contact_force = 40. # forces above this value are penalized # unused
 
@@ -314,7 +315,7 @@ class LeggedRobotCfg( BaseConfig ):
     class video_logger:
         sampled_env_id = 50
         enable_video_logger = True
-        video_log_interval = 50 # 100 
+        video_log_interval = 100 
         video_length_in_sec = 5
         env_dt = 0.02
         canvas_size = [368, 240]
@@ -384,7 +385,7 @@ class LeggedRobotCfgPPO(BaseConfig):
         value_loss_coef = 1.0
         use_clipped_value_loss = True
         clip_param = 0.2
-        entropy_coef = 0.01
+        entropy_coef = 0.1 # 0.01
         num_learning_epochs = 5
         num_mini_batches = 4  # mini batch size = num_envs*nsteps / nminibatches
         learning_rate = 2.e-4  # 5.e-4
@@ -432,7 +433,7 @@ class LeggedRobotCfgPPO(BaseConfig):
 
 class SiriusParkourCfgPPO( LeggedRobotCfgPPO ):
     class algorithm( LeggedRobotCfgPPO.algorithm ):
-        entropy_coef = 0.01
+        entropy_coef = 0.0
     class runner( LeggedRobotCfgPPO.runner ):
         run_name = ''
         experiment_name = 'sirius_parkour'
