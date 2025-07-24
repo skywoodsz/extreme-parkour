@@ -133,7 +133,7 @@ class LeggedRobotCfg( BaseConfig ):
         terrain_length = 9
         terrain_width = 4
         num_rows = 10  # number of terrain rows (levels)  # spreaded is benifitiall !
-        num_cols = 10  # number of terrain cols (types)
+        num_cols = 40  # number of terrain cols (types)
 
         # 训练地形占比
         terrain_dict = {"smooth slope": 0.,
