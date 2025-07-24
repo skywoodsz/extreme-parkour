@@ -85,12 +85,14 @@ class LeggedRobot(BaseTask):
         self.global_counter = 0 # = total_env_steps_counter = common_step_counter
         self.total_env_steps_counter = 0
 
+        # wandb logger
+        conditions = ["contact", "roll", "pitch", "reach_goal", "height", "time_out"]
+        # self.wandb_logger = wandbLogs(conditions, self.dof_names)
+
         self.reset_idx(torch.arange(self.num_envs, device=self.device))
         self.post_physics_step()
 
-        # wandb logger
-        conditions = ["contact", "roll", "pitch", "reach_goal", "height", "time_out"]
-        self.wandb_logger = wandbLogs(conditions, self.dof_names)
+
 
     #################################################################
     ############################  cores  ############################
@@ -228,7 +230,7 @@ class LeggedRobot(BaseTask):
         self.last_root_vel[:] = self.root_states[:, 7:13]
 
         # wandb logger
-        self.wandb_logger.log_joint_states(self.dof_vel[0, :], self.torques[0, :])
+        # self.wandb_logger.log_joint_states(self.dof_vel[0, :], self.torques[0, :])
 
         ## 可视化
         if self.viewer and self.enable_viewer_sync and self.debug_viz:
@@ -425,7 +427,7 @@ class LeggedRobot(BaseTask):
             termination_trigger.append("height")
         if self.time_out_buf[0]:
             termination_trigger.append("time_out")
-        self.wandb_logger.log_reset(termination_trigger)
+        # self.wandb_logger.log_reset(termination_trigger)
         
 
     def _init_buffers(self):
@@ -1212,29 +1214,37 @@ class LeggedRobot(BaseTask):
         Args:
             env_ids (List[int]): Environemnt ids
         """
-        # base position
-        # todo: need wirte random pos in config
-        if self.custom_origins:
+        if self.custom_origins: # true
             self.root_states[env_ids] = self.base_init_state
             self.root_states[env_ids, :3] += self.env_origins[env_ids]
             if self.cfg.env.randomize_start_pos:
-                self.root_states[env_ids, :2] += torch_rand_float(-0.3, 0.3, (len(env_ids), 2),
-                                                                  device=self.device)  # xy position within 1m of the center
-            if self.cfg.env.randomize_start_yaw:
-                rand_yaw = self.cfg.env.rand_yaw_range * torch_rand_float(-1, 1, (len(env_ids), 1),
-                                                                          device=self.device).squeeze(1)
-                if self.cfg.env.randomize_start_pitch:
-                    rand_pitch = self.cfg.env.rand_pitch_range * torch_rand_float(-1, 1, (len(env_ids), 1),
-                                                                                  device=self.device).squeeze(1)
-                else:
-                    rand_pitch = torch.zeros(len(env_ids), device=self.device)
-                quat = quat_from_euler_xyz(0 * rand_yaw, rand_pitch, rand_yaw)
-                self.root_states[env_ids, 3:7] = quat[:, :]
-            if self.cfg.env.randomize_start_y:
-                self.root_states[env_ids, 1] += self.cfg.env.rand_y_range * torch_rand_float(-1, 1,
-                                                                                             (len(env_ids), 1),
-                                                                                             device=self.device).squeeze(
-                    1)
+                init_position = torch.zeros(3, device=self.device)
+                if np.random.rand() < 0.5: # wall
+                    goals = self.terrain_goals[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
+                    goal = goals[0][2] # wall 
+                    goal -= self.env_origins[env_ids][0]
+                    init_position[:2] = goal[:2]
+                    init_position[2] = 1
+                    self.root_states[env_ids, :3] += init_position
+
+            # if self.cfg.env.randomize_start_pos:
+            #     self.root_states[env_ids, :2] += torch_rand_float(-0.3, 0.3, (len(env_ids), 2),
+            #                                                       device=self.device)  # xy position within 1m of the center
+            # if self.cfg.env.randomize_start_yaw:
+            #     rand_yaw = self.cfg.env.rand_yaw_range * torch_rand_float(-1, 1, (len(env_ids), 1),
+            #                                                               device=self.device).squeeze(1)
+            #     if self.cfg.env.randomize_start_pitch:
+            #         rand_pitch = self.cfg.env.rand_pitch_range * torch_rand_float(-1, 1, (len(env_ids), 1),
+            #                                                                       device=self.device).squeeze(1)
+            #     else:
+            #         rand_pitch = torch.zeros(len(env_ids), device=self.device)
+            #     quat = quat_from_euler_xyz(0 * rand_yaw, rand_pitch, rand_yaw)
+            #     self.root_states[env_ids, 3:7] = quat[:, :]
+            # if self.cfg.env.randomize_start_y:
+            #     self.root_states[env_ids, 1] += self.cfg.env.rand_y_range * torch_rand_float(-1, 1,
+            #                                                                                  (len(env_ids), 1),
+            #                                                                                  device=self.device).squeeze(
+            #         1)
 
         else:
             self.root_states[env_ids] = self.base_init_state
@@ -1394,6 +1404,7 @@ class LeggedRobot(BaseTask):
             self.cur_goals = self._gather_cur_goals()
             self.next_goals = self._gather_cur_goals(future=1)
 
+
         else:
             self.custom_origins = False
             self.env_origins = torch.zeros(self.num_envs, 3, device=self.device, requires_grad=False)
@@ -1418,9 +1429,9 @@ class LeggedRobot(BaseTask):
             return
 
         dis_to_origin = torch.norm(self.root_states[env_ids, :2] - self.env_origins[env_ids, :2], dim=1)
-        threshold = self.commands[env_ids, 0] * self.cfg.env.episode_length_s # 6, 16
-        move_up = dis_to_origin > 0.8*threshold
-        move_down = dis_to_origin < 0.4*threshold
+        threshold = self.commands[env_ids, 0] * self.cfg.env.episode_length_s # 6, 16; 12
+        move_up = dis_to_origin > 0.65*threshold # 12-> 0.6
+        move_down = dis_to_origin < 0.33*threshold # 12->0.3
 
         self.terrain_levels[env_ids] += 1 * move_up - 1 * move_down
         # # Robots that solve the last level are sent to a random one

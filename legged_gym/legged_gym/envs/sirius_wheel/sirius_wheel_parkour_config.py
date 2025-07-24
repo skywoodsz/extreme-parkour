@@ -163,7 +163,7 @@ class LeggedRobotCfg( BaseConfig ):
         slope_treshold = 1.5  # slopes above this threshold will be corrected to vertical surfaces
         origin_zero_z = True
 
-        num_goals = 3 # 每个地形的goal数
+        num_goals = 6 # 每个地形的goal数
 
     class commands:
         curriculum = False
@@ -315,8 +315,8 @@ class LeggedRobotCfg( BaseConfig ):
 
     class video_logger:
         sampled_env_id = 50
-        enable_video_logger = True
-        video_log_interval = 50 # 100 
+        enable_video_logger = False
+        video_log_interval = 100 # 100 
         video_length_in_sec = 5
         env_dt = 0.02
         canvas_size = [368, 240]

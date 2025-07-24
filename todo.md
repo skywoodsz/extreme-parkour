@@ -10,7 +10,7 @@
 
 3. debug
  - wandb debug logger (done)
- - check reach goal distance (done) 5m
+ - check reach goal distance (done) 12m
  - check update terrain threshold
- - reset时一半在墙上 一半在地上
- - 取消45度以下terrain
+ - reset时一半在墙上 一半在地上 (done)
+ - 取消45度以下terrain (done)
