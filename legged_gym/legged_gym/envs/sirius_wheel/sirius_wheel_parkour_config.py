@@ -5,7 +5,7 @@ class LeggedRobotCfg( BaseConfig ):
         load_student_config = False
         mask_priv_obs = False
     class env:
-        num_envs = 4096  # origin: 6144; teacher: 4096; only used for teacher policy
+        num_envs = 2048  # origin: 6144; teacher: 4096; only used for teacher policy
         num_actions = 12 + 4
 
         n_scan = 132
@@ -104,14 +104,14 @@ class LeggedRobotCfg( BaseConfig ):
 
         edge_width_thresh = 0.05  ## 距离edge多少起跳
 
-        horizontal_scale = 0.05  # 0.1 [m] influence computation time by a lot
+        horizontal_scale = 0.1  # 0.1 [m] influence computation time by a lot
         horizontal_scale_camera = 0.1
         vertical_scale = 0.005  # [m]
         border_size = 5  # [m]
         height = [0.02, 0.06]
         simplify_grid = False
         gap_size = [0.02, 0.1]
-        stepping_stone_distance = [0.02, 0.08]
+        stepping_stone_distance = [0.02, 0.03]
         downsampled_scale = 0.075
         curriculum = True
 
@@ -130,10 +130,10 @@ class LeggedRobotCfg( BaseConfig ):
         selected = False  # select a unique terrain type and pass all arguments
         terrain_kwargs = None  # Dict of arguments for selected terrain
         max_init_terrain_level = 5  # starting curriculum state
-        terrain_length = 18
+        terrain_length = 9
         terrain_width = 4
         num_rows = 10  # number of terrain rows (levels)  # spreaded is benifitiall !
-        num_cols = 40  # number of terrain cols (types)
+        num_cols = 10  # number of terrain cols (types)
 
         # 训练地形占比
         terrain_dict = {"smooth slope": 0.,
@@ -150,12 +150,13 @@ class LeggedRobotCfg( BaseConfig ):
                         "platform": 0.,
                         "large stairs up": 0.,
                         "large stairs down": 0.,
-                        "parkour": 0.2,
-                        "parkour_hurdle": 0.2,
-                        "parkour_flat": 0.2,
-                        "parkour_step": 0.2,
-                        "parkour_gap": 0.2,
-                        "demo": 0.0, }
+                        "parkour": 0.0,
+                        "parkour_hurdle": 0.0,
+                        "parkour_flat": 0.0,
+                        "parkour_step": 0.0,
+                        "parkour_gap": 0.0,
+                        "demo": 0.0, 
+                        "parkour_wall": 1.0}
         terrain_proportions = list(terrain_dict.values())
 
         # trimesh only:
@@ -269,7 +270,7 @@ class LeggedRobotCfg( BaseConfig ):
             dof_acc = -2.5e-7
             collision = -10.
             action_rate = -0.1
-            delta_torques = -1.0e-7
+            delta_torques = 0.0 # -1.0e-7
             torques = -0.00001
             hip_pos = -0.5
             dof_error = -0.04
@@ -314,7 +315,7 @@ class LeggedRobotCfg( BaseConfig ):
 
     class video_logger:
         sampled_env_id = 50
-        enable_video_logger = False
+        enable_video_logger = True
         video_log_interval = 50 # 100 
         video_length_in_sec = 5
         env_dt = 0.02
@@ -346,7 +347,7 @@ class SiruisWheelParkourCfg( LeggedRobotCfg ):
         }
 
     class control(LeggedRobotCfg.control):
-        control_type = 'P'
+        control_type = 'PD'
         stiffness = {'HAA': 80, "HFE": 80, "KFE": 80, 'WHEEL':0.0}  # [N*m/rad]
         damping = {'HAA': 2.0, "HFE": 2.0, "KFE": 2.0, 'WHEEL':3.0}  # [N*m*s/rad]
         action_scale = [0.5,0.5,0.5,10.0] * 4

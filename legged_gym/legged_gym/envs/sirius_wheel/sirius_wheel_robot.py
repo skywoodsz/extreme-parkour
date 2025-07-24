@@ -19,6 +19,7 @@ import torch, torchvision
 from .sirius_wheel_parkour_config import LeggedRobotCfg
 from .sirius_wheel_parkour_config import SiruisWheelParkourCfg
 from legged_gym.utils.video_logger import video_logger
+from legged_gym.utils.wandb_logs import wandbLogs
 
 #################################################################
 ############################  utils  ############################
@@ -87,6 +88,10 @@ class LeggedRobot(BaseTask):
         self.reset_idx(torch.arange(self.num_envs, device=self.device))
         self.post_physics_step()
 
+        # wandb logger
+        conditions = ["contact", "roll", "pitch", "reach_goal", "height", "time_out"]
+        self.wandb_logger = wandbLogs(conditions, self.dof_names)
+
     #################################################################
     ############################  cores  ############################
     #################################################################
@@ -128,10 +133,9 @@ class LeggedRobot(BaseTask):
         Args:
             actions (torch.Tensor): Tensor of shape (num_envs, num_actions_per_env)
         """
-        actions = self.reindex(actions)  # 根据腿的顺序重新定义joint顺序
+        actions = self.reindex_actions(actions)  # 根据腿的顺序重新定义joint顺序
 
         actions.to(self.device) # actions 是delta position
-        ## action 历史 删除最老的
         # None: 加一维度和action_history_buf对齐
         self.action_history_buf = torch.cat([self.action_history_buf[:, 1:].clone(), actions[:, None, :].clone()],
                                             dim=1)
@@ -195,6 +199,9 @@ class LeggedRobot(BaseTask):
         self.base_lin_acc = (self.root_states[:, 7:10] - self.last_root_vel[:, :3]) / self.dt
 
         self.roll, self.pitch, self.yaw = euler_from_quaternion(self.base_quat)
+        self.roll = normalize_angle(self.roll)
+        self.pitch = normalize_angle(self.pitch)
+        self.yaw = normalize_angle(self.yaw)
 
         contact = torch.norm(self.contact_forces[:, self.feet_indices], dim=-1) > 2. # todo: 接触阈值, need to tune
         self.contact_filt = torch.logical_or(contact, self.last_contacts)
@@ -219,6 +226,9 @@ class LeggedRobot(BaseTask):
         self.last_dof_vel[:] = self.dof_vel[:]
         self.last_torques[:] = self.torques[:]
         self.last_root_vel[:] = self.root_states[:, 7:13]
+
+        # wandb logger
+        self.wandb_logger.log_joint_states(self.dof_vel[0, :], self.torques[0, :])
 
         ## 可视化
         if self.viewer and self.enable_viewer_sync and self.debug_viz:
@@ -341,9 +351,22 @@ class LeggedRobot(BaseTask):
                         self.dof_vel - self.last_dof_vel) / self.sim_params.dt
         elif control_type == "T":
             torques = actions_scaled
+        elif control_type == "PD": # for legged wheel hybrid
+            torques = torch.zeros_like(self.actions)
+            # for legged joints PD
+            torques[:, self.leg_indices] = self.p_gains[self.leg_indices] * (actions_scaled[:,self.leg_indices] + \
+                self.default_dof_pos[:,self.leg_indices] - self.dof_pos[:,self.leg_indices]) -self.d_gains[self.leg_indices]*self.dof_vel[:,self.leg_indices]
+            # for wheel joints D
+            torques[:, self.wheel_indices] = self.d_gains[self.wheel_indices]*(actions_scaled[:,self.wheel_indices] - self.dof_vel[:,self.wheel_indices])
         else:
             raise NameError(f"Unknown controller type: {control_type}")
-        return torch.clip(torques, -self.torque_limits, self.torque_limits)
+
+        # for diff machine
+        self.diff_pos, self.diff_vel, self.diff_torque = self._serial2diff(self.dof_pos.clone(), self.dof_vel.clone(), torques.clone())
+        torques_clip = torch.clip(self.diff_torque, -self.torque_limits, self.torque_limits)
+        self.serial_pos, self.serial_vel, self.serial_torque = self._diff2serial(self.diff_pos.clone(), self.diff_vel.clone(), torques_clip.clone())
+
+        return self.serial_torque
 
     def compute_reward(self):
         """ Compute rewards
@@ -369,8 +392,9 @@ class LeggedRobot(BaseTask):
         """ Check if environments need to be reset
         """
         # reset判断条件/safety check
-        # self.reset_buf = torch.zeros((self.num_envs,), dtype=torch.bool, device=self.device) # no contact terminate
-        self.reset_buf = torch.any(torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 1., dim=1)
+        self.reset_buf = torch.zeros((self.num_envs,), dtype=torch.bool, device=self.device) # no contact terminate
+        # self.reset_buf = torch.any(torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 1., dim=1)
+        contact_cutoff = torch.any(torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 1., dim=1)
 
         roll_cutoff = torch.abs(self.roll) > 1.5
         pitch_cutoff = torch.abs(self.pitch) > 1.5
@@ -378,12 +402,31 @@ class LeggedRobot(BaseTask):
         height_cutoff = self.root_states[:, 2] < -0.25
 
         self.time_out_buf = self.episode_length_buf > self.max_episode_length  # no terminal reward for time-outs
-        self.time_out_buf |= reach_goal_cutoff
+        # self.time_out_buf |= reach_goal_cutoff
 
+        self.reset_buf |= reach_goal_cutoff
+        self.reset_buf |= contact_cutoff 
         self.reset_buf |= self.time_out_buf
         self.reset_buf |= roll_cutoff
         self.reset_buf |= pitch_cutoff
         self.reset_buf |= height_cutoff
+
+        # wandb logger
+        termination_trigger = []
+        if contact_cutoff[0]:
+            termination_trigger.append("contact")
+        if roll_cutoff[0]:
+            termination_trigger.append("roll")
+        if pitch_cutoff[0]:
+            termination_trigger.append("pitch")
+        if reach_goal_cutoff[0]:
+            termination_trigger.append("reach_goal")
+        if height_cutoff[0]:
+            termination_trigger.append("height")
+        if self.time_out_buf[0]:
+            termination_trigger.append("time_out")
+        self.wandb_logger.log_reset(termination_trigger)
+        
 
     def _init_buffers(self):
         """ Initialize torch tensors which will contain simulation states and processed quantities
@@ -488,11 +531,11 @@ class LeggedRobot(BaseTask):
         self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
         self.default_dof_pos_all[:] = self.default_dof_pos[0]
 
-        # print(f"num_dofs: {self.num_dofs}")
-        # print(f"self.p_gains: {self.p_gains}")
-        # print(f"self.d_gains: {self.d_gains}")
-        # print(f"Default dof pos: {self.default_dof_pos_all}")
-        
+        # diff_motor
+        self.diff_pos = self.dof_pos
+        self.diff_vel = self.dof_vel
+        self.diff_torque = self.torques
+  
         # 地形测量更新步长，默认为1
         self.height_update_interval = 1
         if hasattr(self.cfg.env, "height_update_dt"):
@@ -825,6 +868,9 @@ class LeggedRobot(BaseTask):
 
     def reindex(self, vec):
         return vec[:, [8, 9, 10, 0, 1, 2, 12, 13, 14, 4, 5, 6, 11, 3, 15, 7]]
+    
+    def reindex_actions(self, vec):
+        return vec[:, [3, 4, 5, 13, 9, 10, 11, 15, 0, 1, 2, 12, 6, 7, 8, 14]]
 
     def _parse_cfg(self, cfg):
         self.dt = self.cfg.control.decimation * self.sim_params.dt # policy step = 4 * sim step
@@ -1060,6 +1106,12 @@ class LeggedRobot(BaseTask):
         self.calf_indices = torch.zeros(len(calf_names), dtype=torch.long, device=self.device, requires_grad=False)
         for i, name in enumerate(calf_names):
             self.calf_indices[i] = self.dof_names.index(name)
+        wheel_names = ["RF_WHEEL", "LF_WHEEL", "RH_WHEEL", "LH_WHEEL"]
+        self.wheel_indices = torch.zeros(len(wheel_names), dtype=torch.long, device=self.device, requires_grad=False)
+        for i, name in enumerate(wheel_names):
+            self.wheel_indices[i] = self.dof_names.index(name)
+        self.leg_indices = torch.cat((self.hip_indices, self.thigh_indices, self.calf_indices))
+        
 
     # ------------- Random --------------
     def _process_rigid_shape_props(self, props, env_id):
@@ -1366,7 +1418,7 @@ class LeggedRobot(BaseTask):
             return
 
         dis_to_origin = torch.norm(self.root_states[env_ids, :2] - self.env_origins[env_ids, :2], dim=1)
-        threshold = self.commands[env_ids, 0] * self.cfg.env.episode_length_s
+        threshold = self.commands[env_ids, 0] * self.cfg.env.episode_length_s 
         move_up = dis_to_origin > 0.8*threshold
         move_down = dis_to_origin < 0.4*threshold
 
@@ -1385,6 +1437,43 @@ class LeggedRobot(BaseTask):
         self.env_goals[:] = torch.cat((temp, last_col.repeat(1, self.cfg.env.num_future_goal_obs, 1)), dim=1)[:]
         self.cur_goals = self._gather_cur_goals()
         self.next_goals = self._gather_cur_goals(future=1)
+
+    #################################################################
+    ##########################  machine  ############################
+    #################################################################
+    def _serial2diff(self, dof_pos, dof_vel, dof_torque):
+        diff_dof_pos = dof_pos.clone()
+        diff_dof_vel = dof_vel.clone()
+        diff_dof_torque = dof_torque.clone()
+        for motor_id in range(self.num_dof):
+            leg_index = motor_id // 4
+            index = motor_id % 4
+            if index == 0:
+                diff_dof_pos[:,motor_id] = dof_pos[:,motor_id] + dof_pos[:,motor_id + 1]
+                diff_dof_vel[:,motor_id] = dof_vel[:,motor_id] + dof_vel[:,motor_id + 1]
+                diff_dof_torque[:,motor_id] = (dof_torque[:,motor_id] + dof_torque[:,motor_id + 1])/2.0
+            elif index == 1:
+                diff_dof_pos[:,motor_id] = dof_pos[:,motor_id - 1] - dof_pos[:,motor_id]
+                diff_dof_vel[:,motor_id] = dof_vel[:,motor_id - 1] - dof_vel[:,motor_id]
+                diff_dof_torque[:,motor_id] = (dof_torque[:,motor_id - 1] - dof_torque[:,motor_id])/2.0
+        return diff_dof_pos, diff_dof_vel, diff_dof_torque
+
+    def _diff2serial(self, diff_pos, diff_vel, diff_torque):
+        serial_dof_pos = diff_pos.clone()
+        serial_dof_vel = diff_vel.clone()
+        serial_dof_torque = diff_torque.clone()
+        for motor_id in range(self.num_dof):
+            leg_index = motor_id // 4
+            index = motor_id % 4
+            if index == 0:
+                serial_dof_pos[:,motor_id] = (diff_pos[:,motor_id] + diff_pos[:,motor_id + 1])/2.0
+                serial_dof_vel[:,motor_id] = (diff_vel[:,motor_id] + diff_vel[:,motor_id + 1])/2.0
+                serial_dof_torque[:,motor_id] = diff_torque[:,motor_id] + diff_torque[:,motor_id + 1]
+            elif index == 1:
+                serial_dof_pos[:,motor_id] = (diff_pos[:,motor_id - 1] - diff_pos[:,motor_id])/2.0
+                serial_dof_vel[:,motor_id] = (diff_vel[:,motor_id - 1] - diff_vel[:,motor_id])/2.0
+                serial_dof_torque[:,motor_id] = diff_torque[:,motor_id - 1] - diff_torque[:,motor_id]
+        return serial_dof_pos, serial_dof_vel, serial_dof_torque
 
     #################################################################
     ##########################  reward  #############################
@@ -1433,13 +1522,15 @@ class LeggedRobot(BaseTask):
         return torch.sum(torch.square(self.torques - self.last_torques), dim=1)
 
     def _reward_torques(self):
-        return torch.sum(torch.square(self.torques), dim=1)
+        # return torch.sum(torch.square(self.torques), dim=1)
+        return torch.sum(torch.square(self.diff_torque), dim=1)
 
     def _reward_hip_pos(self):
         return torch.sum(torch.square(self.dof_pos[:, self.hip_indices] - self.default_dof_pos[:, self.hip_indices]), dim=1)
 
     def _reward_dof_error(self):
-        dof_error = torch.sum(torch.square(self.dof_pos - self.default_dof_pos), dim=1)
+        # dof_error = torch.sum(torch.square(self.dof_pos - self.default_dof_pos), dim=1)
+        dof_error = torch.sum(torch.square(self.dof_pos[:, self.leg_indices] - self.default_dof_pos[:, self.leg_indices]), dim=1)
         return dof_error
 
     def _reward_feet_stumble(self):
