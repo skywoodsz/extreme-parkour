@@ -350,8 +350,8 @@ class SiruisParkourCfg( LeggedRobotCfg ):
     class asset(LeggedRobotCfg.asset):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/sirius/urdf/sirius_diff.urdf'
         foot_name = "FOOT"
-        penalize_contacts_on = ["shank"]
-        terminate_after_contacts_on = ["base_link", "thigh"]
+        penalize_contacts_on = ["shank", "thigh"]
+        terminate_after_contacts_on = ["base_link"]
         self_collisions = 1  # 1 to disable, 0 to enable...bitwise filter
 
     class rewards( LeggedRobotCfg.rewards ):
