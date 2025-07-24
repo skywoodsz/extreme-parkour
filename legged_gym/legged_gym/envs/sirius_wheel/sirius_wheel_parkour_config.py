@@ -315,7 +315,7 @@ class LeggedRobotCfg( BaseConfig ):
 
     class video_logger:
         sampled_env_id = 50
-        enable_video_logger = False
+        enable_video_logger = True
         video_log_interval = 100 # 100 
         video_length_in_sec = 5
         env_dt = 0.02
