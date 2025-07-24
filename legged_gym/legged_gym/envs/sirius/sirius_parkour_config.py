@@ -275,8 +275,8 @@ class LeggedRobotCfg( BaseConfig ):
             feet_stumble = -1
             feet_edge = -1
             # regularization jitter
-            dof_vel = 0.0
-            dof_vel_limits = 0.0
+            dof_vel = -0.005
+            dof_vel_limits = -0.1
             torque_limits = 0.0
 
         only_positive_rewards = True # if true negative total rewards are clipped at zero (avoids early termination problems)
