@@ -275,8 +275,8 @@ class LeggedRobotCfg( BaseConfig ):
             feet_stumble = -1
             feet_edge = -1
             # regularization jitter
-            dof_vel = -0.005
-            dof_vel_limits = -0.1
+            dof_vel = 0.0
+            dof_vel_limits = 0.0
             torque_limits = 0.0
 
         only_positive_rewards = True # if true negative total rewards are clipped at zero (avoids early termination problems)
@@ -350,8 +350,8 @@ class SiruisParkourCfg( LeggedRobotCfg ):
     class asset(LeggedRobotCfg.asset):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/sirius/urdf/sirius_diff.urdf'
         foot_name = "FOOT"
-        penalize_contacts_on = ["thigh", "shank", "base_link"]
-        terminate_after_contacts_on = ["base_link"]
+        penalize_contacts_on = ["shank"]
+        terminate_after_contacts_on = ["base_link", "thigh"]
         self_collisions = 1  # 1 to disable, 0 to enable...bitwise filter
 
     class rewards( LeggedRobotCfg.rewards ):
