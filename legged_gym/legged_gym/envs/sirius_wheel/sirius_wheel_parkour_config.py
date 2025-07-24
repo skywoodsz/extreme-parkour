@@ -5,7 +5,7 @@ class LeggedRobotCfg( BaseConfig ):
         load_student_config = False
         mask_priv_obs = False
     class env:
-        num_envs = 2048  # origin: 6144; teacher: 4096; only used for teacher policy
+        num_envs = 4096  # origin: 6144; teacher: 4096; only used for teacher policy
         num_actions = 12 + 4
 
         n_scan = 132
@@ -80,7 +80,7 @@ class LeggedRobotCfg( BaseConfig ):
         clip_actions = 100 
 
     class noise:
-        add_noise = True 
+        add_noise = False 
         noise_level = 1.0  # scales other values
         quantize_height = True
 
@@ -130,8 +130,8 @@ class LeggedRobotCfg( BaseConfig ):
         selected = False  # select a unique terrain type and pass all arguments
         terrain_kwargs = None  # Dict of arguments for selected terrain
         max_init_terrain_level = 5  # starting curriculum state
-        terrain_length = 9
-        terrain_width = 4
+        terrain_length = 15
+        terrain_width = 5
         num_rows = 10  # number of terrain rows (levels)  # spreaded is benifitiall !
         num_cols = 40  # number of terrain cols (types)
 

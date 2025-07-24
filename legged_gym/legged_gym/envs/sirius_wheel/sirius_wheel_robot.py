@@ -87,7 +87,7 @@ class LeggedRobot(BaseTask):
 
         # wandb logger
         conditions = ["contact", "roll", "pitch", "reach_goal", "height", "time_out"]
-        # self.wandb_logger = wandbLogs(conditions, self.dof_names)
+        self.wandb_logger = wandbLogs(conditions, self.dof_names)
 
         self.reset_idx(torch.arange(self.num_envs, device=self.device))
         self.post_physics_step()
@@ -427,7 +427,7 @@ class LeggedRobot(BaseTask):
             termination_trigger.append("height")
         if self.time_out_buf[0]:
             termination_trigger.append("time_out")
-        # self.wandb_logger.log_reset(termination_trigger)
+        self.wandb_logger.log_reset(termination_trigger)
         
 
     def _init_buffers(self):
