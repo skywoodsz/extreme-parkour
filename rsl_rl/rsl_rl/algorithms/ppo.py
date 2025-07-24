@@ -140,6 +140,9 @@ class PPO:
         self.actor_critic.train()
 
     def act(self, obs, critic_obs, info, hist_encoding=False):
+        # fix std
+        self.actor_critic.reset_std(0.4, 12, device=self.device)
+
         if self.actor_critic.is_recurrent:
             self.transition.hidden_states = self.actor_critic.get_hidden_states()
         # Compute the actions and values, use proprio to compute estimated priv_states then actions, but store true priv_states

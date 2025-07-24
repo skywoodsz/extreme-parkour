@@ -350,8 +350,8 @@ class SiruisParkourCfg( LeggedRobotCfg ):
     class asset(LeggedRobotCfg.asset):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/sirius/urdf/sirius_diff.urdf'
         foot_name = "FOOT"
-        penalize_contacts_on = ["shank"]
-        terminate_after_contacts_on = ["base_link", "thigh"]
+        penalize_contacts_on = ["shank", "thigh"]
+        terminate_after_contacts_on = ["base_link"]
         self_collisions = 1  # 1 to disable, 0 to enable...bitwise filter
 
     class rewards( LeggedRobotCfg.rewards ):
@@ -385,7 +385,7 @@ class LeggedRobotCfgPPO(BaseConfig):
         value_loss_coef = 1.0
         use_clipped_value_loss = True
         clip_param = 0.2
-        entropy_coef = 0.1 # 0.01
+        entropy_coef = 0.0 # 0.01
         num_learning_epochs = 5
         num_mini_batches = 4  # mini batch size = num_envs*nsteps / nminibatches
         learning_rate = 2.e-4  # 5.e-4

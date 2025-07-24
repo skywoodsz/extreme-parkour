@@ -63,7 +63,8 @@ class OnPolicyRunner:
         self.depth_encoder_cfg = train_cfg["depth_encoder"]
         self.device = device
         self.env = env
-        self.entropy_coef = self.alg_cfg["entropy_coef"]
+        self.entropy_coef = 0.0
+        print(f"entropy_coef:{self.entropy_coef}")
 
         print("Using MLP and Priviliged Env encoder ActorCritic structure")
         actor_critic: ActorCriticRMA = ActorCriticRMA(self.env.cfg.env.n_proprio,
@@ -556,7 +557,7 @@ class OnPolicyRunner:
                 self.alg.depth_actor.load_state_dict(self.alg.actor_critic.actor.state_dict())
         if load_optimizer:
             self.alg.optimizer.load_state_dict(loaded_dict['optimizer_state_dict'])
-        # self.current_learning_iteration = loaded_dict['iter']
+        self.current_learning_iteration = loaded_dict['iter']
         print("*" * 80)
         return loaded_dict['infos']
 

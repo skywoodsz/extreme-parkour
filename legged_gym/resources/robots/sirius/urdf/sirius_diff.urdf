@@ -121,7 +121,7 @@
     <axis
       xyz="1 0 0" />
     <dynamics damping="0.0" friction="0.0"/>
-    <limit effort="40" lower="-0.7853981633974483" upper="0.7853981633974483" velocity="10"/>
+    <limit effort="35" lower="-0.7853981633974483" upper="0.7853981633974483" velocity="10"/>
   </joint>
   <link
     name="thigh_fr">
@@ -177,7 +177,7 @@
     <axis
       xyz="0 1 0" />
     <dynamics damping="0.0" friction="0.0"/>
-    <limit effort="40" lower="-1.57" upper="2.5" velocity="10"/>
+    <limit effort="35" lower="-1.57" upper="2.5" velocity="10"/>
   </joint>
   <link
     name="shank_fr">
@@ -233,7 +233,7 @@
     <axis
       xyz="0 1 0" />
     <dynamics damping="0.0" friction="0.0"/>
-    <limit effort="80" lower="-3.141592653589793" upper="1.17453292519943295" velocity="10"/>
+    <limit effort="70" lower="-3.141592653589793" upper="1.17453292519943295" velocity="8"/>
   </joint>
   <link name="LF_FOOT">
     <visual>
@@ -313,7 +313,7 @@
     <axis
       xyz="1 0 0" />
     <dynamics damping="0.0" friction="0.0"/>
-    <limit effort="40" lower="-0.7853981633974483" upper="0.7853981633974483" velocity="10"/>
+    <limit effort="35" lower="-0.7853981633974483" upper="0.7853981633974483" velocity="10"/>
   </joint>
   <link
     name="thigh_br">
@@ -369,7 +369,7 @@
     <axis
       xyz="0 1 0" />
     <dynamics damping="0.0" friction="0.0"/>
-    <limit effort="40" lower="-2.5" upper="1.57" velocity="10"/>
+    <limit effort="35" lower="-2.5" upper="1.57" velocity="10"/>
   </joint>
   <link
     name="shank_br">
@@ -425,7 +425,7 @@
     <axis
       xyz="0 1 0" />
     <dynamics damping="0.0" friction="0.0"/>
-    <limit effort="80" lower="-1.17453292519943295" upper="3.141592653589793" velocity="10"/>
+    <limit effort="70" lower="-1.17453292519943295" upper="3.141592653589793" velocity="8"/>
   </joint>
   <link name="LH_FOOT">
     <visual>
@@ -505,7 +505,7 @@
     <axis
       xyz="1 0 0" />
     <dynamics damping="0.0" friction="0.0"/>
-    <limit effort="40" lower="-0.7853981633974483" upper="0.7853981633974483" velocity="10"/>
+    <limit effort="35" lower="-0.7853981633974483" upper="0.7853981633974483" velocity="10"/>
   </joint>
   <link
     name="thigh_fl">
@@ -561,7 +561,7 @@
         <axis
       xyz="0 1 0" />
     <dynamics damping="0.0" friction="0.0"/>
-    <limit effort="40" lower="-1.57" upper="2.5" velocity="10"/>
+    <limit effort="35" lower="-1.57" upper="2.5" velocity="10"/>
   </joint>
   <link
     name="shank_fl">
@@ -617,7 +617,7 @@
     <axis
       xyz="0 1 0" />
     <dynamics damping="0.0" friction="0.0"/>
-    <limit effort="80" lower="-3.141592653589793" upper="1.17453292519943295" velocity="10"/>
+    <limit effort="70" lower="-3.141592653589793" upper="1.17453292519943295" velocity="8"/>
   </joint>
   <link name="RF_FOOT">
     <visual>
@@ -697,7 +697,7 @@
     <axis
       xyz="1 0 0" />
     <dynamics damping="0.0" friction="0.0"/>
-    <limit effort="40" lower="-0.7853981633974483" upper="0.7853981633974483" velocity="10"/>
+    <limit effort="35" lower="-0.7853981633974483" upper="0.7853981633974483" velocity="10"/>
   </joint>
   <link
     name="thigh_bl">
@@ -753,7 +753,7 @@
     <axis
       xyz="0 1 0" />
     <dynamics damping="0.0" friction="0.0"/>
-    <limit effort="40" lower="-2.5" upper="1.57" velocity="10"/>
+    <limit effort="35" lower="-2.5" upper="1.57" velocity="10"/>
   </joint>
   <link
     name="shank_bl">
@@ -809,7 +809,7 @@
     <axis
       xyz="0 1 0" />
     <dynamics damping="0.0" friction="0.0"/>
-    <limit effort="80" lower="-1.17453292519943295" upper="3.141592653589793" velocity="10"/>
+    <limit effort="70" lower="-1.17453292519943295" upper="3.141592653589793" velocity="8"/>
   </joint>
   <link name="RH_FOOT">
     <visual>
