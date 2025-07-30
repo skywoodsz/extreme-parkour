@@ -63,5 +63,3 @@ __pycache__
 data
 evaluate
 debug
-
-legged_gym/tests

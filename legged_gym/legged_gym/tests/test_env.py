@@ -37,11 +37,17 @@ from legged_gym.envs import *
 from legged_gym.utils import  get_args, export_policy_as_jit, task_registry, Logger
 
 import torch
+import wandb
 
 
 def test_env(args):
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
-    env_cfg.env.num_envs =  10
+    env_cfg.env.num_envs =  1
+    env_cfg.video_logger.enable_video_logger = False
+
+    wandb.init(project="legged_wheel_parkour", name=args.exptid,
+            entity="skywoodszcn-the-chinese-university-of-hong-kong",
+            group="disabled", mode="disabled", dir="../../logs")
 
     env_cfg.env.episode_length_s = 60
     env_cfg.commands.resampling_time = 60
