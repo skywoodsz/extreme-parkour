@@ -264,7 +264,7 @@ class LeggedRobotCfg( BaseConfig ):
             tracking_goal_vel = 1.5
             tracking_yaw = 0.5
             # regularization rewards
-            lin_vel_z = -1.0
+            lin_vel_z = 0.0 # -1.0
             ang_vel_xy = -0.05
             orientation = -1.
             dof_acc = -2.5e-7
