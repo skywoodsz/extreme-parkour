@@ -195,6 +195,9 @@ class LeggedRobot(BaseTask):
 
         self.roll, self.pitch, self.yaw = euler_from_quaternion(self.base_quat)
 
+        # skywoodsz: for increment control
+        self.control_target_dof_pos_all[:] = self.dof_pos[:]
+
         contact = torch.norm(self.contact_forces[:, self.feet_indices], dim=-1) > 2. # todo: 接触阈值, need to tune
         self.contact_filt = torch.logical_or(contact, self.last_contacts)
         self.last_contacts = contact
@@ -329,11 +332,19 @@ class LeggedRobot(BaseTask):
         control_type = self.cfg.control.control_type
         if control_type == "P":
             if not self.cfg.domain_rand.randomize_motor:  # TODO add strength to gain directly
+                # torques = self.p_gains * (
+                #             actions_scaled + self.default_dof_pos_all - self.dof_pos) - self.d_gains * self.dof_vel
+                # skywoodsz: for increment control
                 torques = self.p_gains * (
-                            actions_scaled + self.default_dof_pos_all - self.dof_pos) - self.d_gains * self.dof_vel
+                            actions_scaled + self.control_target_dof_pos_all - self.dof_pos) - self.d_gains * self.dof_vel
+            
             else:
+                # torques = self.motor_strength[0] * self.p_gains * (
+                #             actions_scaled + self.default_dof_pos_all - self.dof_pos) - self.motor_strength[
+                #               1] * self.d_gains * self.dof_vel
+                # skywoodsz: for increment control
                 torques = self.motor_strength[0] * self.p_gains * (
-                            actions_scaled + self.default_dof_pos_all - self.dof_pos) - self.motor_strength[
+                            actions_scaled + self.control_target_dof_pos_all - self.dof_pos) - self.motor_strength[
                               1] * self.d_gains * self.dof_vel
 
         elif control_type == "V":
@@ -470,6 +481,10 @@ class LeggedRobot(BaseTask):
         self.default_dof_pos = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
         self.default_dof_pos_all = torch.zeros(self.num_envs, self.num_dof, dtype=torch.float, device=self.device,
                                                requires_grad=False)
+        # skywoodsz: for increment control
+        self.control_target_dof_pos_all = torch.zeros_like(self.dof_pos)
+        self.control_target_dof_pos_all[:] = self.dof_pos[:]
+
         for i in range(self.num_dofs):
             name = self.dof_names[i]
             angle = self.cfg.init_state.default_joint_angles[name]

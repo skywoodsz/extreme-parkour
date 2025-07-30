@@ -344,7 +344,7 @@ class SiruisParkourCfg( LeggedRobotCfg ):
         control_type = 'P'
         stiffness = {'HAA': 80, "HFE": 80, "KFE": 80}  # [N*m/rad]
         damping = {'HAA': 2.0, "HFE": 2.0, "KFE": 2.0}  # [N*m*s/rad]
-        action_scale = 0.5 # todo: need to tune a1: 0.25
+        action_scale = 0.25 # 0730: 0.50 
         decimation = 4
 
     class asset(LeggedRobotCfg.asset):
