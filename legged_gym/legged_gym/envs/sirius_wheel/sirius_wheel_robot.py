@@ -93,7 +93,6 @@ class LeggedRobot(BaseTask):
         self.post_physics_step()
 
 
-
     #################################################################
     ############################  cores  ############################
     #################################################################
@@ -428,6 +427,9 @@ class LeggedRobot(BaseTask):
         if self.time_out_buf[0]:
             termination_trigger.append("time_out")
         self.wandb_logger.log_reset(termination_trigger)
+
+        # print("termination_trigger")
+        # print(termination_trigger)
         
 
     def _init_buffers(self):

@@ -46,6 +46,7 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 from time import time, sleep
 from legged_gym.utils import webviewer
+import wandb
 
 def get_load_path(root, load_run=-1, checkpoint=-1, model_name_include="model"):
     if checkpoint==-1:
@@ -65,14 +66,18 @@ def play(args):
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     # override some parameters for testing
     env_cfg.video_logger.enable_video_logger = False
+
+    wandb.init(project="legged_wheel_parkour", name=args.exptid,
+            entity="skywoodszcn-the-chinese-university-of-hong-kong",
+            group="disabled", mode="disabled", dir="../../logs")
     
     if args.nodelay:
         env_cfg.domain_rand.action_delay_view = 0
-    env_cfg.env.num_envs = 16 if not args.save else 64
+    env_cfg.env.num_envs = 1
     env_cfg.env.episode_length_s = 60
     env_cfg.commands.resampling_time = 60
-    env_cfg.terrain.num_rows = 5
-    env_cfg.terrain.num_cols = 5
+    env_cfg.terrain.num_rows = 2
+    env_cfg.terrain.num_cols = 2
     env_cfg.terrain.height = [0.02, 0.02]
     env_cfg.terrain.terrain_dict = {"smooth slope": 0., 
                                     "rough slope up": 0.0,
@@ -97,8 +102,8 @@ def play(args):
                                     "parkour_wall": 1.0}
     
     env_cfg.terrain.terrain_proportions = list(env_cfg.terrain.terrain_dict.values())
-    env_cfg.terrain.curriculum = False
-    env_cfg.terrain.max_difficulty = True
+    env_cfg.terrain.curriculum = True
+    env_cfg.terrain.max_difficulty = False
     
     env_cfg.depth.angle = [0, 1]
     env_cfg.noise.add_noise = False
@@ -107,6 +112,7 @@ def play(args):
     env_cfg.domain_rand.push_interval_s = 6
     env_cfg.domain_rand.randomize_base_mass = False
     env_cfg.domain_rand.randomize_base_com = False
+    env_cfg.commands.max_ranges.lin_vel_x = [0.5, 0.51]
 
     depth_latent_buffer = []
     # prepare environment
@@ -173,9 +179,6 @@ def play(args):
                         step_graphics=True,
                         render_all_camera_sensors=True,
                         wait_for_page_load=True)
-        print("time:", env.episode_length_buf[env.lookat_id].item() / 50, 
-              "cmd vx", env.commands[env.lookat_id, 0].item(),
-              "actual vx", env.base_lin_vel[env.lookat_id, 0].item(), )
         
         id = env.lookat_id
         

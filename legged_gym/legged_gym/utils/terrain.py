@@ -323,8 +323,9 @@ class Terrain:
             self.add_roughness(terrain)
         elif choice < self.proportions[20]: # wall
             idx = 21
+            difficulty = 0 # test
             x_range = [1.0, 1.1+difficulty] #  # [1, 2.1]
-            y_range = [0.5, 0.6+1.0*difficulty] #  #[0.5, 1.6]
+            y_range = [1.0, 1.1+1.0*difficulty] #  #[0.5, 1.6]
             wall_len = [2-difficulty, 2.1-difficulty] # 
 
             # if difficulty < 0.5: # 45
@@ -338,7 +339,6 @@ class Terrain:
             wall_height = 1
             wall_width = 1.3 - difficulty
     
-
             parkour_wall_terrain(terrain,
                                  x_range=x_range,
                                  y_range=y_range,
@@ -442,7 +442,7 @@ def gap_parkour_terrain(terrain, difficulty, platform_size=2.):
     #                 terrain.height_field_raw[i, j] = int(height)
 
 def parkour_wall_terrain(terrain,
-                         platform_len=5, 
+                         platform_len=5.0, 
                          x_range=[0.1, 0.2], 
                          y_range=[0.5, 1.0], 
                          wall_len=[2.0, 2.1],
@@ -455,9 +455,10 @@ def parkour_wall_terrain(terrain,
     stone:要跳跃的墙
     pad: 环境四周隔离
     '''
-    goals = np.zeros((6, 2)) # 3, 2
+    goals = np.zeros((5, 2)) # 3, 2
 
-    terrain.height_field_raw[:] = -round(5.0 / terrain.vertical_scale)
+    # terrain.height_field_raw[:] = -round(5.0 / terrain.vertical_scale)
+    terrain.height_field_raw[:] = -round(0.0 / terrain.vertical_scale)
 
     mid_y = terrain.length // 2 
     wall_len = np.random.uniform(*wall_len)
@@ -473,18 +474,21 @@ def parkour_wall_terrain(terrain,
 
     platform_height = 0.0
     platform_height = round(platform_height / terrain.vertical_scale)
-    terrain.height_field_raw[0:platform_len - wall_len // 2, :] = platform_height
+    terrain.height_field_raw[0:platform_len, :] = platform_height
     
     # 起点
-    dis_x = platform_len - np.random.randint(dis_x_min, dis_x_max) + wall_len // 2 # 开始的远近
-    goals[0] = [platform_len / 2, mid_y]
-    goals[1] = [dis_x, mid_y] # 出发点
+    dis_x = platform_len // 2
+    goals[0] = [dis_x, mid_y]
+    dis_x = platform_len + np.random.randint(dis_x_min, dis_x_max) 
+    # dis_x = platform_len - np.random.randint(dis_x_min, dis_x_max) + wall_len // 2 # 开始的远近
+    # goals[0] = [platform_len - np.random.randint(dis_x_min, dis_x_max), mid_y]
+    # goals[1] = [dis_x + wall_len // 2, mid_y] # 出发点
 
     left_right_flag = np.random.randint(0, 2) # 随机左右
     pos_neg = round(2*(left_right_flag - 0.5)) # 1 -1
     
-    # wall point
-    dis_x += np.random.randint(dis_x_min, dis_x_max)
+    # # wall point
+    # dis_x += np.random.randint(dis_x_min, dis_x_max)
     dis_y = mid_y + pos_neg * np.random.randint(dis_y_min, dis_y_max)
 
     if pos_neg == 1: 
@@ -498,11 +502,11 @@ def parkour_wall_terrain(terrain,
     final_platform_start = dis_x + wall_len // 2 + round(0.05 // terrain.horizontal_scale)
     terrain.height_field_raw[final_platform_start:, :] = platform_height
 
-    # 终点
-    final_dis_x = dis_x + wall_len 
-    goals[3] = [final_dis_x, mid_y]
-    goals[4] = [final_dis_x + platform_len / 2.0, mid_y]
-    goals[-1] = [final_dis_x + platform_len, mid_y]
+    # # 终点
+    # final_dis_x = dis_x + wall_len 
+    # goals[3] = [final_dis_x, mid_y]
+    # goals[4] = [final_dis_x + wall_len // 2, mid_y]
+    # goals[-1] = [final_dis_x + wall_len, mid_y]
 
     terrain.goals = goals * terrain.horizontal_scale
 
