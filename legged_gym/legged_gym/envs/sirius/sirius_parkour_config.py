@@ -275,14 +275,14 @@ class LeggedRobotCfg( BaseConfig ):
             feet_stumble = -1
             feet_edge = -1
             # regularization jitter
-            dof_vel = -0.005
-            dof_vel_limits = -0.1
+            dof_vel = -0.004 # -0.005
+            dof_vel_limits = -0.3
             torque_limits = 0.0
 
         only_positive_rewards = True # if true negative total rewards are clipped at zero (avoids early termination problems)
         tracking_sigma = 0.2 # tracking reward = exp(-error^2/sigma)
         soft_dof_pos_limit = 1. # percentage of urdf limits, values above this limit are penalized
-        soft_dof_vel_limit = 0.8
+        soft_dof_vel_limit = 0.6
         soft_torque_limit = 0.8 
         base_height_target = 1. # unused
         max_contact_force = 40. # forces above this value are penalized # unused

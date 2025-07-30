@@ -121,6 +121,8 @@ class PPO:
         self.estimator_optimizer = optim.Adam(self.estimator.parameters(), lr=estimator_paras["learning_rate"])
         self.train_with_estimated_states = estimator_paras["train_with_estimated_states"]
 
+        self.reset_std_flag = False
+
         # Depth encoder
         self.if_depth = depth_encoder != None
         if self.if_depth:
@@ -140,9 +142,7 @@ class PPO:
         self.actor_critic.train()
 
     def act(self, obs, critic_obs, info, hist_encoding=False):
-        # fix std
-        self.actor_critic.reset_std(0.4, 12, device=self.device)
-
+ 
         if self.actor_critic.is_recurrent:
             self.transition.hidden_states = self.actor_critic.get_hidden_states()
         # Compute the actions and values, use proprio to compute estimated priv_states then actions, but store true priv_states
@@ -160,6 +160,15 @@ class PPO:
         self.transition.action_sigma = self.actor_critic.action_std.detach()
         self.transition.observations = obs
         self.transition.critic_observations = critic_obs
+
+        # fix std
+        self.actor_critic.reset_std(0.4, 12, device=self.device)
+        # if not self.reset_std_flag:
+        #     self.reset_std_flag = True
+        #     self.actor_critic.reset_std(1.0, 12, device=self.device)
+        # self.actor_critic.reset_std(0.4, 12, device=self.device)
+        # if self.transition.action_sigma.mean() < 0.2:
+        #     self.actor_critic.reset_std(0.2, 12, device=self.device)
 
         return self.transition.actions
     

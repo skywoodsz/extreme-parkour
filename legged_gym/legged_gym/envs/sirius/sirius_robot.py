@@ -1454,7 +1454,7 @@ class LeggedRobot(BaseTask):
         return rew
 
     def _reward_dof_vel_limits(self):
-        return torch.sum((torch.abs(self.dof_vel) - self.dof_vel_limits*self.cfg.rewards.soft_dof_vel_limit).clip(min=0., max=1.), dim=1)
+        return torch.sum((torch.abs(self.dof_vel) - self.dof_vel_limits*self.cfg.rewards.soft_dof_vel_limit).clip(min=0., max=1.0), dim=1)
         
     def _reward_dof_vel(self):
         return torch.sum(torch.square(self.dof_vel), dim=1)
