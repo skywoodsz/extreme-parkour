@@ -63,6 +63,7 @@ def train(args):
     wandb.save(LEGGED_GYM_ENVS_DIR + "/sirius/sirius_robot.py", policy="now")
     project_dir = os.path.dirname(LEGGED_GYM_ROOT_DIR)
     wandb.save(project_dir + "/rsl_rl/rsl_rl/runners/on_policy_runner.py", policy="now")
+    wandb.save(project_dir + "/rsl_rl/rsl_rl/algorithms/ppo.py", policy="now")
 
     env, env_cfg = task_registry.make_env(name=args.task, args=args)
     ppo_runner, train_cfg = task_registry.make_alg_runner(log_root = log_pth, env=env, name=args.task, args=args)
