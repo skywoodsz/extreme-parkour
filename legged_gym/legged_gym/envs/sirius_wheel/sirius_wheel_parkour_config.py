@@ -167,7 +167,7 @@ class LeggedRobotCfg( BaseConfig ):
         slope_treshold = 1.5  # slopes above this threshold will be corrected to vertical surfaces
         origin_zero_z = True
 
-        num_goals = 4 # 每个地形的goal数
+        num_goals = 3 # 每个地形的goal数
 
     class commands:
         curriculum = False
