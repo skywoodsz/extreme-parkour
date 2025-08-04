@@ -1221,9 +1221,9 @@ class LeggedRobot(BaseTask):
             self.root_states[env_ids, :3] += self.env_origins[env_ids]
             if self.cfg.env.randomize_start_pos:
                 init_position = torch.zeros(3, device=self.device)
-                if np.random.rand() < 0.2: # wall 0.5
+                if np.random.rand() < 0.5: 
                     goals = self.terrain_goals[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
-                    goal = goals[0][2] 
+                    goal = goals[0][1] 
                     goal -= self.env_origins[env_ids][0]
                     init_position[:2] = goal[:2]
                     init_position[2] = 1.5
@@ -1432,8 +1432,8 @@ class LeggedRobot(BaseTask):
 
         dis_to_origin = torch.norm(self.root_states[env_ids, :2] - self.env_origins[env_ids, :2], dim=1)
         threshold = self.commands[env_ids, 0] * self.cfg.env.episode_length_s # 6, 16; 12
-        move_up = dis_to_origin > 0.65*threshold # 12-> 0.6
-        move_down = dis_to_origin < 0.33*threshold # 12->0.3
+        move_up = dis_to_origin > 0.8*threshold # 12-> 0.6
+        move_down = dis_to_origin < 0.4*threshold # 12->0.3
 
         self.terrain_levels[env_ids] += 1 * move_up - 1 * move_down
         # # Robots that solve the last level are sent to a random one
