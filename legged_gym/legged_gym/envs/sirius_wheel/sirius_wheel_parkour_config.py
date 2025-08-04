@@ -188,7 +188,7 @@ class LeggedRobotCfg( BaseConfig ):
 
         # Easy ranges
         class max_ranges: # todo: need to tune
-            lin_vel_x = [0.3, 0.8]  # min max [m/s]
+            lin_vel_x = [0.6, 1.6] # [0.3, 0.8]  # min max [m/s]
             lin_vel_y = [-0.3, 0.3]  # [0.15, 0.6]   # min max [m/s]
             ang_vel_yaw = [-0, 0]  # min max [rad/s]
             heading = [-1.6, 1.6]
@@ -267,10 +267,11 @@ class LeggedRobotCfg( BaseConfig ):
             # tracking rewards
             tracking_goal_vel = 1.5
             tracking_yaw = 0.5
+            jump_height = 0.5
             # regularization rewards
             lin_vel_z = 0.0 # -1.0
             ang_vel_xy = -0.05
-            orientation = -1.
+            orientation = 0.0 # -1.
             dof_acc = -2.5e-7
             collision = -10.
             action_rate = -0.1
@@ -278,7 +279,7 @@ class LeggedRobotCfg( BaseConfig ):
             torques = -0.00001
             hip_pos = -0.5
             dof_error = -0.04
-            feet_stumble = -1
+            feet_stumble = 0.0 # -1
             feet_edge = 0.0 # -1
             # regularization jitter
             dof_vel = 0.0
@@ -319,7 +320,7 @@ class LeggedRobotCfg( BaseConfig ):
 
     class video_logger:
         sampled_env_id = 50
-        enable_video_logger = False
+        enable_video_logger = True
         video_log_interval = 100 # 100 
         video_length_in_sec = 5
         env_dt = 0.02

@@ -86,7 +86,7 @@ class LeggedRobot(BaseTask):
         self.total_env_steps_counter = 0
 
         # wandb logger
-        conditions = ["contact", "roll", "pitch", "reach_goal", "height", "time_out"]
+        conditions = ["contact", "roll", "pitch", "reach_goal", "height", "time_out", "terminate_area"]
         self.wandb_logger = wandbLogs(conditions, self.dof_names)
 
         self.reset_idx(torch.arange(self.num_envs, device=self.device))
@@ -237,6 +237,7 @@ class LeggedRobot(BaseTask):
             self._draw_height_samples()
             self._draw_goals()
             self._draw_feet()
+            self._draw_terminate()
             if self.cfg.depth.use_camera:
                 window_name = "Depth Image"
                 cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
@@ -389,6 +390,30 @@ class LeggedRobot(BaseTask):
             self.rew_buf += rew
             self.episode_sums["termination"] += rew
 
+    def check_contact_in_terminate_masks(self):
+        feet_pos = self.rigid_body_states[:, self.feet_indices, :2]
+        contact_mask = self.contact_forces[:, self.feet_indices, 2] > 10
+
+        origins = torch.stack([
+            self.terrain_levels * self.terrain.cfg.terrain_length,
+            self.terrain_types * self.terrain.cfg.terrain_width
+        ], dim=-1)
+
+        feet_pos -= origins.unsqueeze(1)
+
+        contact_points_normalized = feet_pos / self.terrain.cfg.horizontal_scale
+        contact_points_grid = contact_points_normalized.long()
+
+        terminate_masks = self.terminate_masks[self.terrain_levels, self.terrain_types]
+        terminate_values = terminate_masks[
+            torch.arange(self.num_envs).unsqueeze(1),  
+            contact_points_grid[..., 0],              
+            contact_points_grid[..., 1]               
+        ]
+
+        terminate_contact = torch.any(terminate_values & contact_mask, dim=1)
+
+        return terminate_contact
     def check_termination(self):
         """ Check if environments need to be reset
         """
@@ -405,12 +430,16 @@ class LeggedRobot(BaseTask):
         self.time_out_buf = self.episode_length_buf > self.max_episode_length  # no terminal reward for time-outs
         # self.time_out_buf |= reach_goal_cutoff
 
+        # foot contact is within the termination areas
+        self.terminate_area_buf = self.check_contact_in_terminate_masks()
+
         self.reset_buf |= reach_goal_cutoff
         self.reset_buf |= contact_cutoff 
         self.reset_buf |= self.time_out_buf
         self.reset_buf |= roll_cutoff
         self.reset_buf |= pitch_cutoff
         self.reset_buf |= height_cutoff
+        self.reset_buf |= self.terminate_area_buf
 
         # wandb logger
         termination_trigger = []
@@ -426,12 +455,11 @@ class LeggedRobot(BaseTask):
             termination_trigger.append("height")
         if self.time_out_buf[0]:
             termination_trigger.append("time_out")
+        if self.terminate_area_buf[0]:
+            termination_trigger.append("terminate_area")
         self.wandb_logger.log_reset(termination_trigger)
 
-        # print("termination_trigger")
-        # print(termination_trigger)
-        
-
+   
     def _init_buffers(self):
         """ Initialize torch tensors which will contain simulation states and processed quantities
         """
@@ -685,7 +713,7 @@ class LeggedRobot(BaseTask):
 
         # reset robot states
         self._reset_dofs(env_ids)
-        self._reset_root_states(env_ids)
+        wall_reset_flag = self._reset_root_states(env_ids)
         self._resample_commands(env_ids)
         self.gym.simulate(self.sim)
         self.gym.fetch_results(self.sim, True)
@@ -701,7 +729,11 @@ class LeggedRobot(BaseTask):
         self.obs_history_buf[env_ids, :, :] = 0.  # reset obs history buffer
         self.contact_buf[env_ids, :, :] = 0.
         self.action_history_buf[env_ids, :, :] = 0.
-        self.cur_goal_idx[env_ids] = 0
+        if not wall_reset_flag:
+            self.cur_goal_idx[env_ids] = 0
+        else:
+            self.cur_goal_idx[env_ids] = 2
+
         self.reach_goal_timer[env_ids] = 0
 
         # fill extras
@@ -966,6 +998,19 @@ class LeggedRobot(BaseTask):
                 else:
                     gymutil.draw_lines(non_edge_geom, self.gym, self.viewer, self.envs[self.lookat_id], pose)
 
+    def _draw_terminate(self):
+        sphere_geom = gymutil.WireframeSphereGeometry(0.02, 4, 4, None, color=(1, 0, 0))  # Red
+        terminate_masks = self.terminate_masks[self.terrain_levels[self.lookat_id], self.terrain_types[self.lookat_id]]
+        indices = torch.nonzero(terminate_masks, as_tuple=False) # terminate points in pixel coordinates
+        origin = [self.terrain_levels[self.lookat_id] * self.terrain.cfg.terrain_length, self.terrain_types[self.lookat_id] * self.terrain.cfg.terrain_width]
+        for i in range(indices.shape[0]):
+            x = indices[i, 0] * self.terrain.cfg.horizontal_scale + origin[0]
+            y = indices[i, 1] * self.terrain.cfg.horizontal_scale + origin[1]
+            z = self.height_samples[indices[i, 0], indices[i, 1]].cpu().item() * self.terrain.cfg.vertical_scale # m
+            pose = gymapi.Transform(gymapi.Vec3(x, y, z), r=None)
+            gymutil.draw_lines(sphere_geom, self.gym, self.viewer, self.envs[self.lookat_id], pose)
+
+
     #################################################################
     #####################  envs and robots  #########################
     #################################################################
@@ -1216,12 +1261,14 @@ class LeggedRobot(BaseTask):
         Args:
             env_ids (List[int]): Environemnt ids
         """
+        wall_reset_flag = False
         if self.custom_origins: # true
             self.root_states[env_ids] = self.base_init_state
             self.root_states[env_ids, :3] += self.env_origins[env_ids]
             if self.cfg.env.randomize_start_pos:
                 init_position = torch.zeros(3, device=self.device)
                 if np.random.rand() < 0.5: 
+                    wall_reset_flag = True
                     goals = self.terrain_goals[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
                     goal = goals[0][1] 
                     goal -= self.env_origins[env_ids][0]
@@ -1255,7 +1302,8 @@ class LeggedRobot(BaseTask):
         self.gym.set_actor_root_state_tensor_indexed(self.sim,
                                                      gymtorch.unwrap_tensor(self.root_states),
                                                      gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
-
+        return wall_reset_flag
+    
     #################################################################
     #########################  terrains  ############################
     #################################################################
@@ -1406,7 +1454,8 @@ class LeggedRobot(BaseTask):
             self.cur_goals = self._gather_cur_goals()
             self.next_goals = self._gather_cur_goals(future=1)
 
-
+            # add terminate terrain mask
+            self.terminate_masks = torch.from_numpy(self.terrain.terminate_masks).to(self.device)
         else:
             self.custom_origins = False
             self.env_origins = torch.zeros(self.num_envs, 3, device=self.device, requires_grad=False)
@@ -1431,7 +1480,12 @@ class LeggedRobot(BaseTask):
             return
 
         dis_to_origin = torch.norm(self.root_states[env_ids, :2] - self.env_origins[env_ids, :2], dim=1)
-        threshold = self.commands[env_ids, 0] * self.cfg.env.episode_length_s # 6, 16; 12
+        # threshold = self.commands[env_ids, 0] * self.cfg.env.episode_length_s # 6, 16; 12
+        goals = self.terrain_goals[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
+        start = goals[0, 0, :]
+        end = goals[0, -1, :]
+        threshold = torch.norm(end - start) 
+
         move_up = dis_to_origin > 0.8*threshold # 12-> 0.6
         move_down = dis_to_origin < 0.4*threshold # 12->0.3
 
@@ -1505,6 +1559,15 @@ class LeggedRobot(BaseTask):
     def _reward_tracking_yaw(self):
         rew = torch.exp(-torch.abs(self.target_yaw - self.yaw))
         return rew
+    
+    def _reward_jump_height(self):
+        # 在cur_gaols 为1, 2 -> 高height，否则为低height
+        high_jump_mask = (self.cur_goal_idx == 1) | (self.cur_goal_idx == 2)  # 当前目标索引为 1 或 2 的 agent
+        target_height = torch.full((self.num_envs,), 0.6, device=self.device)
+        target_height[high_jump_mask] = 1.2
+        rew = torch.exp(-torch.abs(target_height - self.root_states[:, 2]))
+        print(f"target_height:{target_height}, root_states[:, 2]: {self.root_states[:, 2]}")
+        return rew
 
     ############ 正则惩罚  ############
     def _reward_lin_vel_z(self):
@@ -1519,7 +1582,7 @@ class LeggedRobot(BaseTask):
 
     def _reward_orientation(self):
         rew = torch.sum(torch.square(self.projected_gravity[:, :2]), dim=1)
-        rew[self.env_class != 17] = 0. # 只惩罚17
+        # rew[self.env_class != 17] = 0. # 只惩罚17
         return rew
 
     def _reward_dof_acc(self):

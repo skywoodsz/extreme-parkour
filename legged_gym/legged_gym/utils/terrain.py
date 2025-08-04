@@ -62,9 +62,14 @@ class Terrain:
         self.width_per_env_pixels = int(self.env_width / cfg.horizontal_scale)
         self.length_per_env_pixels = int(self.env_length / cfg.horizontal_scale)
 
-        self.border = int(cfg.border_size/self.cfg.horizontal_scale)
+        self.border = int(cfg.border_size / self.cfg.horizontal_scale)
         self.tot_cols = int(cfg.num_cols * self.width_per_env_pixels) + 2 * self.border
         self.tot_rows = int(cfg.num_rows * self.length_per_env_pixels) + 2 * self.border
+
+        # add terminate mask
+        self.terminate_masks = np.zeros((cfg.num_rows, cfg.num_cols, 
+                                         self.length_per_env_pixels, self.width_per_env_pixels), dtype=bool)
+
 
         self.height_field_raw = np.zeros((self.tot_rows , self.tot_cols), dtype=np.int16)
         if cfg.curriculum:
@@ -324,15 +329,9 @@ class Terrain:
         elif choice < self.proportions[20]: # wall
             idx = 21
             x_range = [1.0, 1.1+difficulty] #  # [1, 2.1]
-            y_range = [1.0, 1.1+1.0*difficulty] #  #[0.5, 1.6]
-            wall_len = [2-difficulty, 2.1-difficulty] # 
-
-            # if difficulty < 0.5: # 45
-            #     wall_width = 1
-            #     wall_height = 2 * difficulty
-            # else:
-            #     wall_height = 1
-            #     wall_width = 1.2 - difficulty
+            y_range = [1.0, 1.1+1.0*difficulty] #  #[1.0, 2.1
+            # wall_len = [2-difficulty, 2.1-difficulty] 
+            wall_len = [2.0, 2.1] # fix wall length
 
             # start from 45 deg
             wall_height = 1
@@ -375,6 +374,7 @@ class Terrain:
         self.env_origins[i, j] = [env_origin_x, env_origin_y, env_origin_z]
         self.terrain_type[i, j] = terrain.idx
         self.goals[i, j, :, :2] = terrain.goals + [i * self.env_length, j * self.env_width]
+        self.terminate_masks[i, j, :] = terrain.terminate_mask[:] 
         # self.env_slope_vec[i, j] = terrain.slope_vector
 
 def gap_terrain(terrain, gap_size, platform_size=1.):
@@ -455,8 +455,11 @@ def parkour_wall_terrain(terrain,
     pad: 环境四周隔离
     '''
     goals = np.zeros((3, 2)) # 3, 2
+    terrain.terminate_mask = np.zeros_like(terrain.height_field_raw, dtype=bool)
 
-    terrain.height_field_raw[:] = -round(5.0 / terrain.vertical_scale)
+    # terrain.height_field_raw[:] = -round(5.0 / terrain.vertical_scale) # gap
+    terrain.height_field_raw[:] = 0.0
+    terrain.terminate_mask[:] = True 
 
     mid_y = terrain.length // 2 
     wall_len = np.random.uniform(*wall_len)
@@ -473,6 +476,7 @@ def parkour_wall_terrain(terrain,
     platform_height = 0.0
     platform_height = round(platform_height / terrain.vertical_scale)
     terrain.height_field_raw[0:platform_len, :] = platform_height
+    terrain.terminate_mask[0:platform_len, :] = False
     
     dis_x = platform_len 
     goals[0] = [dis_x, mid_y]
@@ -490,19 +494,25 @@ def parkour_wall_terrain(terrain,
     
     terrain.height_field_raw[dis_x-wall_len//2:dis_x+wall_len//2, dis_y-wall_width//2: int(dis_y+ wall_width/2 + 0.5)] = heights.astype(int)
 
+    terrain.terminate_mask[dis_x-wall_len//2:dis_x+wall_len//2, dis_y-wall_width//2: int(dis_y+ wall_width/2 + 0.5)] = False
     goals[1] = [dis_x, dis_y]
 
     final_platform_end = dis_x + wall_len // 2 + round(0.05 // terrain.horizontal_scale)
     final_platform_start = dis_x - wall_len // 2 - round(0.05 // terrain.horizontal_scale)
     terrain.height_field_raw[final_platform_end:, :] = platform_height
     terrain.height_field_raw[:final_platform_start, :] = platform_height
+    terrain.terminate_mask[final_platform_end:, :] = False
+    terrain.terminate_mask[:final_platform_start, :] = False
 
     final_dis_x = dis_x + np.random.randint(dis_x_min, dis_x_max) 
     goals[2] = [final_dis_x, mid_y]
 
-    terrain.goals = goals * terrain.horizontal_scale
+    terrain.goals = goals * terrain.horizontal_scale # m
     
-    # distance  = 12m
+    # print(f"mid:{terrain.goals[1] - terrain.goals[0]}")
+    # print(f"destination:{terrain.goals[-1] - terrain.goals[0]}")
+    # distance  = 6~7m
+    # mid distance = 3~4m
 
 
 
