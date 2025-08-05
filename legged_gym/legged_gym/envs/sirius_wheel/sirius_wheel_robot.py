@@ -397,23 +397,27 @@ class LeggedRobot(BaseTask):
         origins = torch.stack([
             self.terrain_levels * self.terrain.cfg.terrain_length,
             self.terrain_types * self.terrain.cfg.terrain_width
-        ], dim=-1)
+        ], dim=-1).to(self.device)
 
         feet_pos -= origins.unsqueeze(1)
 
         contact_points_normalized = feet_pos / self.terrain.cfg.horizontal_scale
-        contact_points_grid = contact_points_normalized.long()
+        contact_points_grid = contact_points_normalized.long().to(self.device)
 
         terminate_masks = self.terminate_masks[self.terrain_levels, self.terrain_types]
+
+        grid_x = torch.clamp(contact_points_grid[..., 0], 0, terminate_masks.shape[1] - 1)
+        grid_y = torch.clamp(contact_points_grid[..., 1], 0, terminate_masks.shape[2] - 1)
         terminate_values = terminate_masks[
-            torch.arange(self.num_envs).unsqueeze(1),  
-            contact_points_grid[..., 0],              
-            contact_points_grid[..., 1]               
+            torch.arange(self.num_envs, device=self.device).unsqueeze(1),
+            grid_x,
+            grid_y
         ]
 
-        terminate_contact = torch.any(terminate_values & contact_mask, dim=1)
+        terminate_contact = torch.any(terminate_values & contact_mask, dim=1).to(self.device)
 
         return terminate_contact
+    
     def check_termination(self):
         """ Check if environments need to be reset
         """
@@ -1480,14 +1484,15 @@ class LeggedRobot(BaseTask):
             return
 
         dis_to_origin = torch.norm(self.root_states[env_ids, :2] - self.env_origins[env_ids, :2], dim=1)
-        # threshold = self.commands[env_ids, 0] * self.cfg.env.episode_length_s # 6, 16; 12
-        goals = self.terrain_goals[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
-        start = goals[0, 0, :]
-        end = goals[0, -1, :]
-        threshold = torch.norm(end - start) 
+        threshold = self.commands[env_ids, 0] * self.cfg.env.episode_length_s # 12; 24
 
-        move_up = dis_to_origin > 0.8*threshold # 12-> 0.6
-        move_down = dis_to_origin < 0.4*threshold # 12->0.3
+        # goals = self.terrain_goals[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
+        # start = goals[0, 0, :]
+        # end = goals[0, -1, :]
+        # threshold = torch.norm(end - start)  # 6; 4
+
+        move_up = dis_to_origin > 0.27*threshold # 12-> 0.6
+        move_down = dis_to_origin < 0.07*threshold # 12->0.3
 
         self.terrain_levels[env_ids] += 1 * move_up - 1 * move_down
         # # Robots that solve the last level are sent to a random one
@@ -1566,7 +1571,6 @@ class LeggedRobot(BaseTask):
         target_height = torch.full((self.num_envs,), 0.6, device=self.device)
         target_height[high_jump_mask] = 1.2
         rew = torch.exp(-torch.abs(target_height - self.root_states[:, 2]))
-        print(f"target_height:{target_height}, root_states[:, 2]: {self.root_states[:, 2]}")
         return rew
 
     ############ 正则惩罚  ############
