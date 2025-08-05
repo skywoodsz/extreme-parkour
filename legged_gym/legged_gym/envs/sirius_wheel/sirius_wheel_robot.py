@@ -961,7 +961,8 @@ class LeggedRobot(BaseTask):
         for i, goal in enumerate(goals):
             goal_xy = goal[:2] + self.terrain.cfg.border_size
             pts = (goal_xy / self.terrain.cfg.horizontal_scale).astype(int)
-            goal_z = self.height_samples[pts[0], pts[1]].cpu().item() * self.terrain.cfg.vertical_scale
+            # goal_z = self.height_samples[pts[0], pts[1]].cpu().item() * self.terrain.cfg.vertical_scale 
+            goal_z = 0.05
             pose = gymapi.Transform(gymapi.Vec3(goal[0], goal[1], goal_z), r=None)
             if i == self.cur_goal_idx[self.lookat_id].cpu().item():
                 gymutil.draw_lines(sphere_geom_cur, self.gym, self.viewer, self.envs[self.lookat_id], pose)
@@ -1277,8 +1278,11 @@ class LeggedRobot(BaseTask):
                     goal = goals[0][1] 
                     goal -= self.env_origins[env_ids][0]
                     init_position[:2] = goal[:2]
-                    init_position[2] = 1.5
+                    init_position[2] = 1.2
                     self.root_states[env_ids, :3] += init_position
+
+                    self.root_states[env_ids, 7:8] = torch_rand_float(1.0, 3.0, (len(env_ids), 1),
+                                                    device=self.device)  # lin vel x
 
             # if self.cfg.env.randomize_start_pos:
             #     self.root_states[env_ids, :2] += torch_rand_float(-0.3, 0.3, (len(env_ids), 2),
@@ -1306,6 +1310,7 @@ class LeggedRobot(BaseTask):
         self.gym.set_actor_root_state_tensor_indexed(self.sim,
                                                      gymtorch.unwrap_tensor(self.root_states),
                                                      gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
+        
         return wall_reset_flag
     
     #################################################################
