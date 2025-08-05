@@ -1275,7 +1275,7 @@ class LeggedRobot(BaseTask):
                 if np.random.rand() < 0.5: 
                     wall_reset_flag = True
                     goals = self.terrain_goals[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
-                    goal = goals[0][1] 
+                    goal = goals[0][1]  # goals[0][1] 
                     goal -= self.env_origins[env_ids][0]
                     init_position[:2] = goal[:2]
                     init_position[2] = 1.2
@@ -1596,6 +1596,7 @@ class LeggedRobot(BaseTask):
         target_height = torch.full((self.num_envs,), 0.6, device=self.device)
         target_height[high_jump_mask] = 1.2
         tracking_height_error = torch.square(target_height - self.root_states[:, 2])
+        # print(target_height)
         return torch.exp(-tracking_height_error/self.cfg.rewards.tracking_sigma)
 
     ############ 正则惩罚  ############

@@ -8,7 +8,7 @@ class LeggedRobotCfg( BaseConfig ):
         num_envs = 4096  # origin: 6144; teacher: 4096; only used for teacher policy
         num_actions = 12 + 4
 
-        n_scan = 418
+        n_scan = 221
         n_priv = 3 + 3 + 3
         n_priv_latent = 4 + 1 + num_actions + num_actions  # mass + CoM + Motor strength
         n_proprio = 3 + 2 + 3 + 3 + 2 + 3 * num_actions + 4 # todo: delete 2
@@ -126,9 +126,9 @@ class LeggedRobotCfg( BaseConfig ):
         #                      1.2]  
         # measured_points_y = [-0.75, -0.6, -0.45, -0.3, -0.15, 0., 0.15, 0.3, 0.45, 0.6, 0.75]
         measured_points_x = [-0.45, -0.3, -0.15, 0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1.05, 
-                             1.2, 1.35, 1.50, 1.75, 1.90, 2.05, 2.30, 2.45, 2.6, 2.75, 2.9]  
-        measured_points_y = [-1.45, -1.30, -1.05, -0.90, -0.75, -0.6, -0.45, -0.3, -0.15, 0., 0.15, 0.3, 
-                             0.45, 0.6, 0.75, 0.90, 1.05, 1.30, 1.45]
+                             1.2, 1.35, 1.50, 1.75, 1.90, 2.05]  
+        measured_points_y = [-0.90, -0.75, -0.6, -0.45, -0.3, -0.15, 0., 0.15, 0.3, 
+                             0.45, 0.6, 0.75, 0.90]
         measure_horizontal_noise = 0.0
 
         selected = False  # select a unique terrain type and pass all arguments
@@ -160,8 +160,10 @@ class LeggedRobotCfg( BaseConfig ):
                         "parkour_step": 0.0,
                         "parkour_gap": 0.0,
                         "demo": 0.0, 
-                        "parkour_wall": 0.5,
-                        "parkour_wall_gap": 0.5}
+                        "parkour_wall": 0.0,
+                        "parkour_wall_gap": 0.0,
+                        "parkour_wall_2": 0.5,
+                        "parkour_wall_gap_2": 0.5}
         terrain_proportions = list(terrain_dict.values())
 
         # trimesh only:
