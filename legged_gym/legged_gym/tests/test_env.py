@@ -52,7 +52,7 @@ def test_env(args):
     env_cfg.env.episode_length_s = 60
     env_cfg.commands.resampling_time = 60
     env_cfg.terrain.num_rows = 10
-    env_cfg.terrain.num_cols = 1
+    env_cfg.terrain.num_cols = 2
     env_cfg.terrain.height = [0.02, 0.02]
     env_cfg.terrain.terrain_dict = {"smooth slope": 0.0,
                                     "rough slope up": 0.0,
@@ -74,7 +74,8 @@ def test_env(args):
                                     "parkour_step": 0.0,
                                     "parkour_gap": 0.0,
                                     "demo": 0.0,
-                                    "parkour_wall": 1.0}
+                                    "parkour_wall": 0.5,
+                                    "parkour_wall_gap": 0.5}
     
     env_cfg.terrain.terrain_proportions = list(env_cfg.terrain.terrain_dict.values())
     env_cfg.terrain.curriculum = True

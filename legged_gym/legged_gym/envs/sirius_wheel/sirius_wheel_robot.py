@@ -230,8 +230,6 @@ class LeggedRobot(BaseTask):
 
         # wandb logger
         # self.wandb_logger.log_joint_states(self.dof_vel[0, :], self.torques[0, :])
-        dis_to_origin = torch.norm(self.root_states[0, :2] - self.env_origins[0, :2], dim=1)
-        self.wandb_logger.log_dis_to_origin(dis_to_origin)
 
         ## 可视化
         if self.viewer and self.enable_viewer_sync and self.debug_viz:
@@ -1490,10 +1488,12 @@ class LeggedRobot(BaseTask):
         goals = self.terrain_goals[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
         start = self.env_origins[env_ids, :2]
         end = goals[0, -1, :2]
-        threshold = torch.norm(end - start) 
+        threshold = torch.norm(end - start, dim=1) 
+        threshold_upper = 0.9 * threshold
+        threshold_lower = 0.4 * threshold
 
-        move_up = dis_to_origin > 0.9*threshold # 12-> 0.6
-        move_down = dis_to_origin < 0.4*threshold # 12->0.3
+        move_up = dis_to_origin > threshold_upper # 12-> 0.6
+        move_down = dis_to_origin < threshold_lower # 12->0.3
 
         # print(f"threshold:{threshold}")
         # print(f"dis_to_origin:{dis_to_origin}")
@@ -1523,6 +1523,13 @@ class LeggedRobot(BaseTask):
         self.cur_goals = self._gather_cur_goals()
         self.next_goals = self._gather_cur_goals(future=1)
 
+        if torch.any(env_ids == 0):
+            self.wandb_logger.log_dis_to_origin(
+                dis_to_origin[0].item(),
+                threshold[0].item(),
+                threshold_upper[0].item(),
+                threshold_lower[0].item()
+            )
     #################################################################
     ##########################  machine  ############################
     #################################################################

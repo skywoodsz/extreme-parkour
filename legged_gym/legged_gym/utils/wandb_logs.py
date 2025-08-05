@@ -54,6 +54,9 @@ class wandbLogs:
         
         wandb.log(wandb_dict, commit=False)
 
-    def log_dis_to_origin(self, dis_to_origin):
-        wandb_dict = {"dis_to_origin": dis_to_origin}
+    def log_dis_to_origin(self, dis_to_origin, threshold, threshold_upper, threshold_lower):
+        wandb_dict = {"dis_to_origin": dis_to_origin,
+                      "threshold": threshold,
+                      "threshold_upper": threshold_upper,
+                      "threshold_lower": threshold_lower}
         wandb.log(wandb_dict, commit=False)
