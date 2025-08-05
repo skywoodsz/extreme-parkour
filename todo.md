@@ -34,3 +34,8 @@
 
 7. refine 5
  - wall len从2->1
+
+8. refine 6 (parkour_wall2 和 parkour_wall_gap2)
+ - 固定wall到robot y方向的距离，能在起跳时登墙. 0.2-0.5m
+ - goals不在墙上，在一条直线上
+ 
