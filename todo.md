@@ -29,7 +29,8 @@
 
 6. refine 3
  - 挖坑 + 不挖坑 (done)
+ - 修复阈值bug (done)
  - log 加入log_dis_to_origin来check阈值 (done)
 
-7. refine 4
- - check level < ? 才有天上掉
+7. refine 5
+ - wall len从2->1

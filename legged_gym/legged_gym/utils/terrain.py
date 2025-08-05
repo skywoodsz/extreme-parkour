@@ -331,7 +331,7 @@ class Terrain:
             x_range = [1.0, 1.1+difficulty] #  # [1, 2.1]
             y_range = [1.0, 1.1+1.0*difficulty] #  #[1.0, 2.1
             # wall_len = [2-difficulty, 2.1-difficulty] 
-            wall_len = [2.0, 2.1] # fix wall length
+            wall_len = [1.0, 1.1] # fix wall length
 
             # start from 45 deg
             wall_height = 1
@@ -349,7 +349,8 @@ class Terrain:
             x_range = [1.0, 1.1+difficulty] #  # [1, 2.1]
             y_range = [1.0, 1.1+1.0*difficulty] #  #[1.0, 2.1
             # wall_len = [2-difficulty, 2.1-difficulty] 
-            wall_len = [2.0, 2.1] # fix wall length
+            # wall_len = [2.0, 2.1] # fix wall length
+            wall_len = [1.0, 1.1]
 
             # start from 45 deg
             wall_height = 1

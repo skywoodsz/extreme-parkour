@@ -1489,7 +1489,7 @@ class LeggedRobot(BaseTask):
         start = self.env_origins[env_ids, :2]
         end = goals[0, -1, :2]
         threshold = torch.norm(end - start, dim=1) 
-        threshold_upper = 0.9 * threshold
+        threshold_upper = 0.8 * threshold # 0.9
         threshold_lower = 0.4 * threshold
 
         move_up = dis_to_origin > threshold_upper # 12-> 0.6
