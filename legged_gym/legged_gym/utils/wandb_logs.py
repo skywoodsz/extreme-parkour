@@ -53,3 +53,7 @@ class wandbLogs:
             wandb_dict[f"Joint Torque/{self.dof_names[i]}"] = dof_torque[i]
         
         wandb.log(wandb_dict, commit=False)
+
+    def log_dis_to_origin(self, dis_to_origin):
+        wandb_dict = {"dis_to_origin": dis_to_origin}
+        wandb.log(wandb_dict, commit=False)

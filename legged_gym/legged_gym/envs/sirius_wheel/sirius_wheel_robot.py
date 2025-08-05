@@ -230,6 +230,8 @@ class LeggedRobot(BaseTask):
 
         # wandb logger
         # self.wandb_logger.log_joint_states(self.dof_vel[0, :], self.torques[0, :])
+        dis_to_origin = torch.norm(self.root_states[0, :2] - self.env_origins[0, :2], dim=1)
+        self.wandb_logger.log_dis_to_origin(dis_to_origin)
 
         ## 可视化
         if self.viewer and self.enable_viewer_sync and self.debug_viz:
@@ -1484,15 +1486,26 @@ class LeggedRobot(BaseTask):
             return
 
         dis_to_origin = torch.norm(self.root_states[env_ids, :2] - self.env_origins[env_ids, :2], dim=1)
-        threshold = self.commands[env_ids, 0] * self.cfg.env.episode_length_s # 12; 24
+        # threshold = self.commands[env_ids, 0] * self.cfg.env.episode_length_s # 6, 16; 12
+        goals = self.terrain_goals[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
+        start = self.env_origins[env_ids, :2]
+        end = goals[0, -1, :2]
+        threshold = torch.norm(end - start) 
 
-        # goals = self.terrain_goals[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
-        # start = goals[0, 0, :]
-        # end = goals[0, -1, :]
-        # threshold = torch.norm(end - start)  # 6; 4
+        move_up = dis_to_origin > 0.9*threshold # 12-> 0.6
+        move_down = dis_to_origin < 0.4*threshold # 12->0.3
 
-        move_up = dis_to_origin > 0.27*threshold # 12-> 0.6
-        move_down = dis_to_origin < 0.07*threshold # 12->0.3
+        # print(f"threshold:{threshold}")
+        # print(f"dis_to_origin:{dis_to_origin}")
+        # print(f"dist 1 point:{torch.norm(goals[0, 0, :2] - start)}")
+        # print(f"dist 2 point:{torch.norm(goals[0, 1, :2] - start)}")
+        # print(f"dist 3 point:{torch.norm(goals[0, 2, :2] - start)}")
+
+        # threshold:7.600000381469727
+        # dis_to_origin:tensor([0.4821])
+        # dist 1 point:1.5
+        # dist 2 point:4.609772205352783 >6 跳过
+        # dist 3 point:7.600000381469727
 
         self.terrain_levels[env_ids] += 1 * move_up - 1 * move_down
         # # Robots that solve the last level are sent to a random one
@@ -1570,8 +1583,8 @@ class LeggedRobot(BaseTask):
         high_jump_mask = (self.cur_goal_idx == 1) | (self.cur_goal_idx == 2)  # 当前目标索引为 1 或 2 的 agent
         target_height = torch.full((self.num_envs,), 0.6, device=self.device)
         target_height[high_jump_mask] = 1.2
-        rew = torch.exp(-torch.abs(target_height - self.root_states[:, 2]))
-        return rew
+        tracking_height_error = torch.square(target_height - self.root_states[:, 2])
+        return torch.exp(-tracking_height_error/self.cfg.rewards.tracking_sigma)
 
     ############ 正则惩罚  ############
     def _reward_lin_vel_z(self):

@@ -22,3 +22,14 @@
  - 加goal height rewards (done)
  - 改在墙上初始化的robot goal (done)
  - 墙上初始化的robot有初始速度
+
+ 5. refine 2
+ - 整定_reward_jump_height的参数 (done)
+ - check update terrain threshold (done)
+
+6. refine 3
+ - 挖坑 + 不挖坑 (done)
+ - log 加入log_dis_to_origin来check阈值 (done)
+
+7. refine 4
+ - check level < ? 才有天上掉

@@ -160,7 +160,8 @@ class LeggedRobotCfg( BaseConfig ):
                         "parkour_step": 0.0,
                         "parkour_gap": 0.0,
                         "demo": 0.0, 
-                        "parkour_wall": 1.0}
+                        "parkour_wall": 0.5,
+                        "parkour_wall_gap": 0.5}
         terrain_proportions = list(terrain_dict.values())
 
         # trimesh only:
@@ -267,7 +268,7 @@ class LeggedRobotCfg( BaseConfig ):
             # tracking rewards
             tracking_goal_vel = 1.5
             tracking_yaw = 0.5
-            jump_height = 0.5
+            jump_height = 1.0
             # regularization rewards
             lin_vel_z = 0.0 # -1.0
             ang_vel_xy = -0.05
@@ -286,7 +287,7 @@ class LeggedRobotCfg( BaseConfig ):
             dof_vel_limits = 0.0
 
         only_positive_rewards = True # if true negative total rewards are clipped at zero (avoids early termination problems)
-        tracking_sigma = 0.2 # tracking reward = exp(-error^2/sigma)
+        tracking_sigma = 0.25 # tracking reward = exp(-error^2/sigma)
         soft_dof_pos_limit = 1. # percentage of urdf limits, values above this limit are penalized
         soft_dof_vel_limit = 0.8
         soft_torque_limit = 0.4 # unusedd
@@ -320,11 +321,11 @@ class LeggedRobotCfg( BaseConfig ):
 
     class video_logger:
         sampled_env_id = 50
-        enable_video_logger = True
+        enable_video_logger = False # False
         video_log_interval = 100 # 100 
         video_length_in_sec = 5
         env_dt = 0.02
-        canvas_size = [368, 240]
+        canvas_size = [368, 240] 
 
 class SiruisWheelParkourCfg( LeggedRobotCfg ):
     class init_state( LeggedRobotCfg.init_state ):
