@@ -1249,7 +1249,6 @@ class LeggedRobot(BaseTask):
         Args:
             env_ids (List[int]): Environemnt ids
         """
-        # todo: need wirte random pos in config
         self.dof_pos[env_ids] = self.default_dof_pos + torch_rand_float(0., 0.9, (len(env_ids), self.num_dof),
                                                                         device=self.device)
         self.dof_vel[env_ids] = 0.
@@ -1272,7 +1271,7 @@ class LeggedRobot(BaseTask):
             self.root_states[env_ids, :3] += self.env_origins[env_ids]
             if self.cfg.env.randomize_start_pos:
                 init_position = torch.zeros(3, device=self.device)
-                if np.random.rand() < 0.5: 
+                if np.random.rand() < 1.0: 
                     wall_reset_flag = True
                     goals = self.terrain_goals[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
                     goal = goals[0][1]  # goals[0][1] 
@@ -1284,29 +1283,25 @@ class LeggedRobot(BaseTask):
                     self.root_states[env_ids, 7:8] = torch_rand_float(1.0, 3.0, (len(env_ids), 1),
                                                     device=self.device)  # lin vel x
 
-            # if self.cfg.env.randomize_start_pos:
-            #     self.root_states[env_ids, :2] += torch_rand_float(-0.3, 0.3, (len(env_ids), 2),
-            #                                                       device=self.device)  # xy position within 1m of the center
-            # if self.cfg.env.randomize_start_yaw:
-            #     rand_yaw = self.cfg.env.rand_yaw_range * torch_rand_float(-1, 1, (len(env_ids), 1),
-            #                                                               device=self.device).squeeze(1)
-            #     if self.cfg.env.randomize_start_pitch:
-            #         rand_pitch = self.cfg.env.rand_pitch_range * torch_rand_float(-1, 1, (len(env_ids), 1),
-            #                                                                       device=self.device).squeeze(1)
-            #     else:
-            #         rand_pitch = torch.zeros(len(env_ids), device=self.device)
-            #     quat = quat_from_euler_xyz(0 * rand_yaw, rand_pitch, rand_yaw)
-            #     self.root_states[env_ids, 3:7] = quat[:, :]
-            # if self.cfg.env.randomize_start_y:
-            #     self.root_states[env_ids, 1] += self.cfg.env.rand_y_range * torch_rand_float(-1, 1,
-            #                                                                                  (len(env_ids), 1),
-            #                                                                                  device=self.device).squeeze(
-            #         1)
+                    default_dof_pos_wall = self.default_dof_pos.repeat(len(env_ids), 1)
+                    pos_neg = self.wall_right_left[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
+                    cols = torch.tensor([0, 4, 8, 12], device=self.device, requires_grad=False)
+                    default_dof_pos_wall[:, cols] = (0.8 * pos_neg)[:, None]
+
+                    
+                    self.dof_pos[env_ids] = default_dof_pos_wall + torch_rand_float(0., 0.2, (len(env_ids), self.num_dof),
+                                                                        device=self.device)
+                    self.dof_vel[env_ids] = 0.
+       
 
         else:
             self.root_states[env_ids] = self.base_init_state
             self.root_states[env_ids, :3] += self.env_origins[env_ids]
         env_ids_int32 = env_ids.to(dtype=torch.int32)
+
+        self.gym.set_dof_state_tensor_indexed(self.sim,
+                                              gymtorch.unwrap_tensor(self.dof_state),
+                                              gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
         self.gym.set_actor_root_state_tensor_indexed(self.sim,
                                                      gymtorch.unwrap_tensor(self.root_states),
                                                      gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
@@ -1465,6 +1460,8 @@ class LeggedRobot(BaseTask):
 
             # add terminate terrain mask
             self.terminate_masks = torch.from_numpy(self.terrain.terminate_masks).to(self.device)
+            self.wall_right_left = torch.from_numpy(self.terrain.wall_right_left).to(self.device)
+           
         else:
             self.custom_origins = False
             self.env_origins = torch.zeros(self.num_envs, 3, device=self.device, requires_grad=False)
@@ -1667,13 +1664,11 @@ class LeggedRobot(BaseTask):
     
     def _reward_jump_height(self):
         # 在cur_gaols 为1, 2 -> 高height，否则为低height
-        high_jump_mask = (self.cur_goal_idx == 1) | (self.cur_goal_idx == 2)  # 当前目标索引为 1 或 2 的 agent
+        high_jump_mask = (self.cur_goal_idx == 1)   # 当前目标索引为 1 或 2 的 agent
         target_height = torch.full((self.num_envs,), 0.6, device=self.device)
         target_height[high_jump_mask] = 1.2
 
-        tracking_height_error = torch.square(target_height - self.root_states[:, 2])
-
-        rew = torch.sum(tracking_height_error) # todo: check dim
+        rew = torch.square(target_height - self.root_states[:, 2])
 
         return rew
 

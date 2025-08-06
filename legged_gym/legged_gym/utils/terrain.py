@@ -69,7 +69,8 @@ class Terrain:
         # add terminate mask
         self.terminate_masks = np.zeros((cfg.num_rows, cfg.num_cols, 
                                          self.length_per_env_pixels, self.width_per_env_pixels), dtype=bool)
-
+        # add wall right or left
+        self.wall_right_left = np.zeros((cfg.num_rows, cfg.num_cols), dtype=np.int16)
 
         self.height_field_raw = np.zeros((self.tot_rows , self.tot_cols), dtype=np.int16)
         if cfg.curriculum:
@@ -436,6 +437,7 @@ class Terrain:
         self.terrain_type[i, j] = terrain.idx
         self.goals[i, j, :, :2] = terrain.goals + [i * self.env_length, j * self.env_width]
         self.terminate_masks[i, j, :] = terrain.terminate_mask[:] 
+        self.wall_right_left[i, j] = terrain.pos_neg
         # self.env_slope_vec[i, j] = terrain.slope_vector
 
 def gap_terrain(terrain, gap_size, platform_size=1.):
@@ -511,6 +513,7 @@ def parkour_wall_gap2(terrain,
                          ):
     goals = np.zeros((3, 2)) # 3, 2
     terrain.terminate_mask = np.zeros_like(terrain.height_field_raw, dtype=bool)
+    terrain.pos_neg = 1
 
     gap_height = np.random.uniform(0.1, 5.0)
     terrain.height_field_raw[:] = -round(gap_height / terrain.vertical_scale) # gap
@@ -541,6 +544,7 @@ def parkour_wall_gap2(terrain,
 
     left_right_flag = np.random.randint(0, 2) 
     pos_neg = round(2*(left_right_flag - 0.5)) # 1 -1
+    terrain.pos_neg = pos_neg
     
     dis_y = mid_y + pos_neg * np.random.randint(dis_y_min, dis_y_max)
 
@@ -578,6 +582,7 @@ def parkour_wall2(terrain,
                          ):
     goals = np.zeros((3, 2)) # 3, 2
     terrain.terminate_mask = np.zeros_like(terrain.height_field_raw, dtype=bool)
+    terrain.pos_neg = 1
 
     terrain.height_field_raw[:] = 0.0 # gap
     terrain.terminate_mask[:] = True 
@@ -607,6 +612,7 @@ def parkour_wall2(terrain,
 
     left_right_flag = np.random.randint(0, 2) 
     pos_neg = round(2*(left_right_flag - 0.5)) # 1 -1
+    terrain.pos_neg = pos_neg
     
     dis_y = mid_y + pos_neg * np.random.randint(dis_y_min, dis_y_max)
 
