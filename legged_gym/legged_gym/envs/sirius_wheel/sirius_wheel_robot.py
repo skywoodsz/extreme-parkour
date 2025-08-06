@@ -1629,7 +1629,13 @@ class LeggedRobot(BaseTask):
         return torch.sum(torch.square(self.diff_torque), dim=1)
 
     def _reward_hip_pos(self):
-        return torch.sum(torch.square(self.dof_pos[:, self.hip_indices] - self.default_dof_pos[:, self.hip_indices]), dim=1)
+        mask = (self.cur_goal_idx != 1) # without jumping
+        rew = torch.zeros(self.num_envs, device=self.device)
+        rew[mask] = torch.sum(
+            torch.square(self.dof_pos[mask][:, self.hip_indices] - self.default_dof_pos[mask][:, self.hip_indices]),
+            dim=1
+        ) # todo: check
+        return rew
 
     def _reward_dof_error(self):
         # dof_error = torch.sum(torch.square(self.dof_pos - self.default_dof_pos), dim=1)
