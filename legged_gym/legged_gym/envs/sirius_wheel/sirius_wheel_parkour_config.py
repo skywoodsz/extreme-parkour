@@ -278,7 +278,7 @@ class LeggedRobotCfg( BaseConfig ):
             collision = -10.
             action_rate = 0.0 # -0.1
             delta_torques = 0.0 # -1.0e-7
-            torques = -0.00001
+            torques = 0 # -0.00001
             hip_pos = -0.5 
             dof_error = -0.04
             feet_stumble = 0.0 # -1

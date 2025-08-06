@@ -1636,8 +1636,8 @@ class LeggedRobot(BaseTask):
         return torch.sum(torch.square(self.torques - self.last_torques), dim=1)
 
     def _reward_torques(self):
-        # return torch.sum(torch.square(self.torques), dim=1)
-        return torch.sum(torch.square(self.diff_torque), dim=1)
+        return torch.sum(torch.square(self.torques), dim=1)
+        # return torch.sum(torch.square(self.diff_torque), dim=1)
 
     def _reward_hip_pos(self):
         hip_err = torch.sum(torch.square(self.dof_pos[:, self.hip_indices] - self.default_dof_pos[:, self.hip_indices]), dim=1) 
