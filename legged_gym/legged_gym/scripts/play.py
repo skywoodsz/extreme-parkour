@@ -73,7 +73,7 @@ def play(args):
     
     if args.nodelay:
         env_cfg.domain_rand.action_delay_view = 0
-    env_cfg.env.num_envs = 10
+    env_cfg.env.num_envs = 5
     env_cfg.env.episode_length_s = 60
     env_cfg.commands.resampling_time = 60
     env_cfg.terrain.num_rows = 10
@@ -99,13 +99,13 @@ def play(args):
                                     "parkour_step": 0.0,
                                     "parkour_gap": 0.0, 
                                     "demo": 0.0,
-                                    "parkour_wall": 0.0,
-                                    "parkour_wall_gap": 0.0,
-                                    "parkour_wall2": 1.0,
-                                    "parkour_wall_gap2": 1.0}
+                                    "parkour_wall": 0.5,
+                                    "parkour_wall_gap": 0.5,
+                                    "parkour_wall2": 0.0,
+                                    "parkour_wall_gap2": 0.0}
     
     env_cfg.terrain.terrain_proportions = list(env_cfg.terrain.terrain_dict.values())
-    env_cfg.terrain.curriculum = False
+    env_cfg.terrain.curriculum = True
     env_cfg.terrain.max_difficulty = True
     
     env_cfg.depth.angle = [0, 1]

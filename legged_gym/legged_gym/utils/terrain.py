@@ -330,9 +330,11 @@ class Terrain:
         elif choice < self.proportions[20]: # wall
             idx = 21
             x_range = [1.0, 1.1+difficulty] #  # [1, 2.1]
-            y_range = [1.0, 1.1+1.0*difficulty] #  #[1.0, 2.1
+            # y_range = [1.0, 1.1+1.0*difficulty] #  #[1.0, 2.1
+            y_range = [0.5, 0.6+0.2*difficulty]
             # wall_len = [2-difficulty, 2.1-difficulty] 
-            wall_len = [1.0, 1.1] # fix wall length
+            # wall_len = [1.0, 1.1] # fix wall length
+            wall_len = [1.0 + difficulty, 1.1 + difficulty]
 
             # start from 45 deg
             wall_height = 1
@@ -348,10 +350,12 @@ class Terrain:
         elif choice < self.proportions[21]: # wall gap
             idx = 22
             x_range = [1.0, 1.1+difficulty] #  # [1, 2.1]
-            y_range = [1.0, 1.1+1.0*difficulty] #  #[1.0, 2.1
+            # y_range = [1.0, 1.1+1.0*difficulty] #  #[1.0, 2.1
+            y_range = [0.5, 0.6+0.2*difficulty]
             # wall_len = [2-difficulty, 2.1-difficulty] 
             # wall_len = [2.0, 2.1] # fix wall length
-            wall_len = [1.0, 1.1]
+            # wall_len = [1.0, 1.1]
+            wall_len = [1.0 + difficulty, 1.1 + difficulty]
 
             # start from 45 deg
             wall_height = 1
@@ -651,6 +655,7 @@ def parkour_wall_gap(terrain,
     
     goals = np.zeros((3, 2)) # 3, 2
     terrain.terminate_mask = np.zeros_like(terrain.height_field_raw, dtype=bool)
+    terrain.pos_neg = 1
 
     gap_height = np.random.uniform(0.1, 5.0)
     terrain.height_field_raw[:] = -round(gap_height / terrain.vertical_scale) # gap
@@ -679,6 +684,7 @@ def parkour_wall_gap(terrain,
 
     left_right_flag = np.random.randint(0, 2) 
     pos_neg = round(2*(left_right_flag - 0.5)) # 1 -1
+    terrain.pos_neg = pos_neg
     
     dis_y = mid_y + pos_neg * np.random.randint(dis_y_min, dis_y_max)
 
@@ -721,6 +727,7 @@ def parkour_wall_terrain(terrain,
     '''
     goals = np.zeros((3, 2)) # 3, 2
     terrain.terminate_mask = np.zeros_like(terrain.height_field_raw, dtype=bool)
+    terrain.pos_neg = 1
 
     # terrain.height_field_raw[:] = -round(5.0 / terrain.vertical_scale) # gap
     terrain.height_field_raw[:] = 0.0
@@ -749,6 +756,7 @@ def parkour_wall_terrain(terrain,
 
     left_right_flag = np.random.randint(0, 2) 
     pos_neg = round(2*(left_right_flag - 0.5)) # 1 -1
+    terrain.pos_neg = pos_neg
     
     dis_y = mid_y + pos_neg * np.random.randint(dis_y_min, dis_y_max)
 

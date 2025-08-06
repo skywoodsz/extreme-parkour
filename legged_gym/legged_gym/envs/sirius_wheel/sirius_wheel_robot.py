@@ -1271,7 +1271,7 @@ class LeggedRobot(BaseTask):
             self.root_states[env_ids, :3] += self.env_origins[env_ids]
             if self.cfg.env.randomize_start_pos:
                 init_position = torch.zeros(3, device=self.device)
-                if np.random.rand() < 0.5: 
+                if np.random.rand() < 1.0: 
                     wall_reset_flag = True
                     goals = self.terrain_goals[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
                     goal = goals[0][1]  # goals[0][1] 
@@ -1280,8 +1280,8 @@ class LeggedRobot(BaseTask):
                     init_position[2] = 1.2
                     self.root_states[env_ids, :3] += init_position
 
-                    self.root_states[env_ids, 7:8] = torch_rand_float(1.0, 3.0, (len(env_ids), 1),
-                                                    device=self.device)  # lin vel x
+                    # self.root_states[env_ids, 7:8] = torch_rand_float(1.0, 3.0, (len(env_ids), 1),
+                    #                                 device=self.device)  # lin vel x
 
                     default_dof_pos_wall = self.default_dof_pos.repeat(len(env_ids), 1)
                     pos_neg = self.wall_right_left[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
