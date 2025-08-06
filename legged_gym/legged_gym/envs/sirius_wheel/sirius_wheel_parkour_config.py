@@ -270,23 +270,24 @@ class LeggedRobotCfg( BaseConfig ):
             # tracking rewards
             tracking_goal_vel = 1.5
             tracking_yaw = 0.5
-            jump_height = 1.0
             # regularization rewards
             lin_vel_z = 0.0 # -1.0
             ang_vel_xy = -0.05
-            orientation = 0.0 # -1.
+            orientation = -1.0
             dof_acc = -2.5e-7
             collision = -10.
-            action_rate = -0.1
+            action_rate = 0.0 # -0.1
             delta_torques = 0.0 # -1.0e-7
             torques = -0.00001
-            hip_pos = -0.5
-            dof_error = -0.04
+            hip_pos = 0.0 # -0.5
+            dof_error = 0.0 # -0.04
             feet_stumble = 0.0 # -1
             feet_edge = 0.0 # -1
             # regularization jitter
             dof_vel = 0.0
             dof_vel_limits = 0.0
+
+            jump_height = -1.0
 
         only_positive_rewards = True # if true negative total rewards are clipped at zero (avoids early termination problems)
         tracking_sigma = 0.25 # tracking reward = exp(-error^2/sigma)

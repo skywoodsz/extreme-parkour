@@ -36,6 +36,12 @@
  - wall len从2->1
 
 8. refine 6 (parkour_wall2 和 parkour_wall_gap2)
- - 固定wall到robot y方向的距离，能在起跳时登墙. 0.2-0.5m
- - goals不在墙上，在一条直线上
+ - 固定wall到robot y方向的距离，能在起跳时登墙. 0.2-0.5m (done)
+ - goals不在墙上，在一条直线上 (done)
+ - 调整起始goal的位置，方便跳跃 (done)
+ - 合适的下放height和初始速度 (done)
+ - 裁减scandot(done)
+
+9. refine 7 
+- 预定义base轨迹
  

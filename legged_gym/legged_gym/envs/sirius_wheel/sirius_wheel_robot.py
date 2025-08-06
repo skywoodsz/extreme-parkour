@@ -1590,14 +1590,14 @@ class LeggedRobot(BaseTask):
         rew = torch.exp(-torch.abs(self.target_yaw - self.yaw))
         return rew
     
-    def _reward_jump_height(self):
-        # 在cur_gaols 为1, 2 -> 高height，否则为低height
-        high_jump_mask = (self.cur_goal_idx == 1) | (self.cur_goal_idx == 2)  # 当前目标索引为 1 或 2 的 agent
-        target_height = torch.full((self.num_envs,), 0.6, device=self.device)
-        target_height[high_jump_mask] = 1.2
-        tracking_height_error = torch.square(target_height - self.root_states[:, 2])
-        # print(target_height)
-        return torch.exp(-tracking_height_error/self.cfg.rewards.tracking_sigma)
+    # def _reward_jump_height(self):
+    #     # 在cur_gaols 为1, 2 -> 高height，否则为低height
+    #     high_jump_mask = (self.cur_goal_idx == 1) | (self.cur_goal_idx == 2)  # 当前目标索引为 1 或 2 的 agent
+    #     target_height = torch.full((self.num_envs,), 0.6, device=self.device)
+    #     target_height[high_jump_mask] = 1.2
+    #     tracking_height_error = torch.square(target_height - self.root_states[:, 2])
+    #     # print(target_height)
+    #     return torch.exp(-tracking_height_error/self.cfg.rewards.tracking_sigma)
 
     ############ 正则惩罚  ############
     def _reward_lin_vel_z(self):
@@ -1664,3 +1664,17 @@ class LeggedRobot(BaseTask):
         
     def _reward_dof_vel(self):
         return torch.sum(torch.square(self.dof_vel), dim=1)
+    
+    def _reward_jump_height(self):
+        # 在cur_gaols 为1, 2 -> 高height，否则为低height
+        high_jump_mask = (self.cur_goal_idx == 1) | (self.cur_goal_idx == 2)  # 当前目标索引为 1 或 2 的 agent
+        target_height = torch.full((self.num_envs,), 0.6, device=self.device)
+        target_height[high_jump_mask] = 1.2
+
+        tracking_height_error = torch.square(target_height - self.root_states[:, 2])
+
+        rew = torch.sum(tracking_height_error) # todo: check dim
+
+        return rew
+
+        
