@@ -160,10 +160,10 @@ class LeggedRobotCfg( BaseConfig ):
                         "parkour_step": 0.0,
                         "parkour_gap": 0.0,
                         "demo": 0.0, 
-                        "parkour_wall": 0.0,
-                        "parkour_wall_gap": 0.0,
-                        "parkour_wall_2": 0.5,
-                        "parkour_wall_gap_2": 0.5}
+                        "parkour_wall": 0.5,
+                        "parkour_wall_gap": 0.5,
+                        "parkour_wall_2": 0.0,
+                        "parkour_wall_gap_2": 0.0}
         terrain_proportions = list(terrain_dict.values())
 
         # trimesh only:
