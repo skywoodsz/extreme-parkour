@@ -58,6 +58,7 @@
 - reset时将关节朝墙，希望提升samping 效率学会蹬墙 (done)
 1.2.2
 - 在墙之外惩罚hip，墙上不惩罚hip (done)
+- 在墙之外惩罚joint error，墙上不惩罚joint error (done)
 - 在墙上的样本不update terrain课程 (done)  
 - 减小从原点开始的update terrain课程阈值 (done)  
 - 取消差分计算torque(done)  

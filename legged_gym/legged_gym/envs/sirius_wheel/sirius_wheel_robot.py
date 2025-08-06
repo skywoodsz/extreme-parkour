@@ -86,8 +86,8 @@ class LeggedRobot(BaseTask):
         self.total_env_steps_counter = 0
 
         # wandb logger
-        conditions = ["contact", "roll", "pitch", "reach_goal", "height", "time_out", "terminate_area"]
-        self.wandb_logger = wandbLogs(conditions, self.dof_names)
+        # conditions = ["contact", "roll", "pitch", "reach_goal", "height", "time_out", "terminate_area"]
+        # self.wandb_logger = wandbLogs(conditions, self.dof_names)
 
         self.reset_idx(torch.arange(self.num_envs, device=self.device))
         self.post_physics_step()
@@ -448,22 +448,23 @@ class LeggedRobot(BaseTask):
         self.reset_buf |= self.terminate_area_buf
 
         # wandb logger
-        termination_trigger = []
-        if contact_cutoff[0]:
-            termination_trigger.append("contact")
-        if roll_cutoff[0]:
-            termination_trigger.append("roll")
-        if pitch_cutoff[0]:
-            termination_trigger.append("pitch")
-        if reach_goal_cutoff[0]:
-            termination_trigger.append("reach_goal")
-        if height_cutoff[0]:
-            termination_trigger.append("height")
-        if self.time_out_buf[0]:
-            termination_trigger.append("time_out")
-        if self.terminate_area_buf[0]:
-            termination_trigger.append("terminate_area")
-        self.wandb_logger.log_reset(termination_trigger)
+        # Notes: time-consuming 
+        # termination_trigger = []
+        # if contact_cutoff[0]:
+        #     termination_trigger.append("contact")
+        # if roll_cutoff[0]:
+        #     termination_trigger.append("roll")
+        # if pitch_cutoff[0]:
+        #     termination_trigger.append("pitch")
+        # if reach_goal_cutoff[0]:
+        #     termination_trigger.append("reach_goal")
+        # if height_cutoff[0]:
+        #     termination_trigger.append("height")
+        # if self.time_out_buf[0]:
+        #     termination_trigger.append("time_out")
+        # if self.terminate_area_buf[0]:
+        #     termination_trigger.append("terminate_area")
+        # self.wandb_logger.log_reset(termination_trigger)
 
    
     def _init_buffers(self):
@@ -1495,31 +1496,32 @@ class LeggedRobot(BaseTask):
             return
 
         # for origin
-        dis_to_origin = torch.norm(self.root_states[group_origin, :2] - self.env_origins[group_origin, :2], dim=1)
-        # threshold = self.commands[env_ids, 0] * self.cfg.env.episode_length_s # 6, 16; 12
-        goals = self.terrain_goals[self.terrain_levels[group_origin], self.terrain_types[group_origin]]
-        start = self.env_origins[group_origin, :2]
-        end = goals[0, -1, :2]
-        threshold = torch.norm(end - start, dim=1) 
-        threshold_upper = 0.7 * threshold # 0.9
-        threshold_lower = 0.2 * threshold
+        if len(group_origin) > 0:
+            dis_to_origin = torch.norm(self.root_states[group_origin, :2] - self.env_origins[group_origin, :2], dim=1)
+            # threshold = self.commands[env_ids, 0] * self.cfg.env.episode_length_s # 6, 16; 12
+            goals = self.terrain_goals[self.terrain_levels[group_origin], self.terrain_types[group_origin]]
+            start = self.env_origins[group_origin, :2]
+            end = goals[0, -1, :2]
+            threshold = torch.norm(end - start, dim=1) 
+            threshold_upper = 0.7 * threshold # 0.9
+            threshold_lower = 0.2 * threshold
 
-        move_up = dis_to_origin > threshold_upper # 12-> 0.6
-        move_down = dis_to_origin < threshold_lower # 12->0.3
+            move_up = dis_to_origin > threshold_upper # 12-> 0.6
+            move_down = dis_to_origin < threshold_lower # 12->0.3
 
-        # print(f"threshold:{threshold}")
-        # print(f"dis_to_origin:{dis_to_origin}")
-        # print(f"dist 1 point:{torch.norm(goals[0, 0, :2] - start)}")
-        # print(f"dist 2 point:{torch.norm(goals[0, 1, :2] - start)}")
-        # print(f"dist 3 point:{torch.norm(goals[0, 2, :2] - start)}")
+            # print(f"threshold:{threshold}")
+            # print(f"dis_to_origin:{dis_to_origin}")
+            # print(f"dist 1 point:{torch.norm(goals[0, 0, :2] - start)}")
+            # print(f"dist 2 point:{torch.norm(goals[0, 1, :2] - start)}")
+            # print(f"dist 3 point:{torch.norm(goals[0, 2, :2] - start)}")
 
-        # threshold:7.600000381469727
-        # dis_to_origin:tensor([0.4821])
-        # dist 1 point:1.5
-        # dist 2 point:4.609772205352783 >6 跳过
-        # dist 3 point:7.600000381469727
+            # threshold:7.600000381469727
+            # dis_to_origin:tensor([0.4821])
+            # dist 1 point:1.5
+            # dist 2 point:4.609772205352783 >6 跳过
+            # dist 3 point:7.600000381469727
 
-        self.terrain_levels[group_origin] += 1 * move_up - 1 * move_down
+            self.terrain_levels[group_origin] += 1 * move_up - 1 * move_down
 
         # # Robots that solve the last level are sent to a random one
         self.terrain_levels[env_ids] = torch.where(self.terrain_levels[env_ids] >= self.max_terrain_level,
@@ -1538,13 +1540,14 @@ class LeggedRobot(BaseTask):
         self.cur_goals = self._gather_cur_goals()
         self.next_goals = self._gather_cur_goals(future=1)
 
-        if torch.any(env_ids == 0):
-            self.wandb_logger.log_dis_to_origin(
-                dis_to_origin[0].item(),
-                threshold[0].item(),
-                threshold_upper[0].item(),
-                threshold_lower[0].item()
-            )
+        # wanbd logger
+        # if torch.any(env_ids == 0):
+        #     self.wandb_logger.log_dis_to_origin(
+        #         dis_to_origin[0].item(),
+        #         threshold[0].item(),
+        #         threshold_upper[0].item(),
+        #         threshold_lower[0].item()
+        #     )
 
     # def _update_terrain_curriculum(self, env_ids):
     #     """ Implements the game-inspired curriculum.
@@ -1710,9 +1713,10 @@ class LeggedRobot(BaseTask):
         return rew
 
     def _reward_dof_error(self):
-        # dof_error = torch.sum(torch.square(self.dof_pos - self.default_dof_pos), dim=1)
         dof_error = torch.sum(torch.square(self.dof_pos[:, self.leg_indices] - self.default_dof_pos[:, self.leg_indices]), dim=1)
-        return dof_error
+        mask = (self.cur_goal_idx != 1) # without jump
+        rew = dof_error * mask.to(dof_error.dtype)
+        return rew
 
     def _reward_feet_stumble(self):
         # 检查水平接触力是否大于垂直接触力的 4 倍。
