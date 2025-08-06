@@ -33,6 +33,11 @@ import numpy as np
 from collections import defaultdict
 from multiprocessing import Process, Value
 
+DOF_NAMES = ['LF_HAA', 'LF_HFE', 'LF_KFE', 'LF_WHEEL',
+             'LH_HAA', 'LH_HFE', 'LH_KFE', 'LH_WHEEL',
+             'RF_HAA', 'RF_HFE', 'RF_KFE', 'RF_WHEEL', 
+             'RH_HAA', 'RH_HFE', 'RH_KFE', 'RH_WHEEL']
+
 class Logger:
     def __init__(self, dt):
         self.state_log = defaultdict(list)
@@ -123,7 +128,87 @@ class Logger:
         if log["dof_torque"]!=[]: a.plot(time, log["dof_torque"], label='measured')
         a.set(xlabel='time [s]', ylabel='Joint Torque [Nm]', title='Torque')
         a.legend()
+
+        nb_rows = 4
+        nb_cols = 5
+        fig, axs = plt.subplots(nb_rows, nb_cols)
+        # plot joint targets and measured positions
+        dof_pos_all = np.array(log["dof_pos_all"])
+        dof_pos_target_all = np.array(log["dof_pos_target_all"])
+        for i in range(len(DOF_NAMES)):
+            a = axs[int(i/5), i%5]
+            if log["dof_pos_all"]: a.plot(time, dof_pos_all[:,i], label='measured')
+            if log["dof_pos_target_all"]: a.plot(time, dof_pos_target_all[:,i], label='target')
+            if log["dof_pos_limits_lower"]: a.axhline(y=log["dof_pos_limits_lower"][0][i], label='lower',c="r")
+            if log["dof_pos_limits_upper"]: a.axhline(y=log["dof_pos_limits_upper"][0][i], label='upper',c="r")
+            # if log["dof_pos_target"]: a.plot(time, log["dof_pos_target"], label='target')
+            a.set(ylabel='Position [rad]', title='{:} Position'.format(DOF_NAMES[i]))
+            a.legend()
+
+
+        nb_rows = 4
+        nb_cols = 5
+        fig, axs = plt.subplots(nb_rows, nb_cols)
+        # plot joint targets and measured positions
+        dof_vel_all = np.array(log["dof_vel_all"])
+        dof_vel_target_all = np.array(log["dof_vel_target_all"])
+        for i in range(len(DOF_NAMES)):
+            a = axs[int(i/5), i%5]
+            if log["dof_vel_all"]: a.plot(time, dof_vel_all[:,i], label='measured')
+            if log["dof_vel_limits"]: a.axhline(y=log["dof_vel_limits"][0][i], label='lower',c="r")
+            if log["dof_vel_limits"]: a.axhline(y=-log["dof_vel_limits"][0][i], label='upper',c="r")
+            if log["dof_vel_target_all"]: a.plot(time, dof_vel_target_all[:,i], label='target')
+            a.set(ylabel='Vel [rad/s]', title='{:} Velocity'.format(DOF_NAMES[i]))
+            a.legend()
+
+        nb_rows = 4
+        nb_cols = 5
+        fig, axs = plt.subplots(nb_rows, nb_cols)
+        # plot joint targets and measured positions
+        dof_torque_all = np.array(log["dof_torque_all"])
+        for i in range(len(DOF_NAMES)):
+            a = axs[int(i/5), i%5]
+            if log["dof_torque_all"]: a.plot(time, dof_torque_all[:,i], label='measured')
+            if log["dof_torque_limits"]: a.axhline(y=log["dof_torque_limits"][0][i], label='lower',c="r")
+            if log["dof_torque_limits"]: a.axhline(y=-log["dof_torque_limits"][0][i], label='upper',c="r")
+            # if log["dof_pos_target"]: a.plot(time, log["dof_pos_target"], label='target')
+            a.set(ylabel='Torque [Nm]', title='{:} Torque'.format(DOF_NAMES[i]))
+            a.legend()
+
+        nb_rows = 4
+        nb_cols = 4
+        fig, axs = plt.subplots(nb_rows, nb_cols)
+        dof_vel_all = np.array(log["dof_vel_all"])
+        dof_torque_all = np.array(log["dof_torque_all"])
+        joint_gear_ratio = [1,1,2,1]*4
+
+        plt.subplots_adjust(wspace=0.3, hspace=0.3)  # Reduce spacing between subplots
+        for i in range(len(DOF_NAMES)):
+            a = axs[int(i/4), i%4]
+            a.plot(abs(dof_vel_all[:,i]), abs(dof_torque_all[:,i]), 'x', label='measured')
+            a.set(xlabel='Joint vel [rad/s]', ylabel='Joint Torque [Nm]', title=DOF_NAMES[i])
+            if log["dof_vel_limits"]:
+                vel_limit = log["dof_vel_limits"][0][i]
+                a.set_xlim([0, vel_limit+5])
+            if log["dof_torque_limits"]:
+                torque_limit = log["dof_torque_limits"][0][i]
+                a.set_ylim([0, torque_limit+5])
+            
+            # Draw torque limit curve
+            vel_points = np.linspace(0, vel_limit+5, 20)
+            torque_limits = np.array([self.torque_limit_curve(joint_gear_ratio[i], v) for v in vel_points])
+            a.plot(vel_points, torque_limits, 'r-', label='torque vel balanced limit')
+            
+            a.legend()
+
         plt.show()
+    
+    def torque_limit_curve(self,gear_ratio,current_dof_vel):
+        if current_dof_vel*gear_ratio<13.5:
+            max_torque = 40*gear_ratio
+        else:
+            max_torque = np.clip(40*gear_ratio-(current_dof_vel*gear_ratio-13.5)*9.0619,0,40*gear_ratio*1.1)
+        return max_torque
 
     def print_rewards(self):
         print("Average rewards per second:")

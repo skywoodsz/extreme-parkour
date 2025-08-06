@@ -47,17 +47,18 @@
  
 1.1 aaa-qq:
 1.1.1
-- 修改height jumping trakcing为regulation，用linear函数
-- 加入orientation regulation，保证没有奇怪的姿态变化行为
-- reset时将关节朝墙，希望提升samping 效率学会蹬墙
+- 修改height jumping trakcing为regulation，用linear函数 (done)
+- 加入orientation regulation，保证没有奇怪的姿态变化行为 (done)
+- reset时将关节朝墙，希望提升samping 效率学会蹬墙 (done)
 
 1.2 aaa-pp:
 1.2.1
-- 修改height jumping trakcing为regulation，用linear函数
-- 加入orientation regulation，保证没有奇怪的姿态变化行为
-- reset时将关节朝墙，希望提升samping 效率学会蹬墙
+- 修改height jumping trakcing为regulation，用linear函数 (done)
+- 加入orientation regulation，保证没有奇怪的姿态变化行为 (done)
+- reset时将关节朝墙，希望提升samping 效率学会蹬墙 (done)
 1.2.2
-- 在墙之外惩罚hip，墙上不惩罚hip
-- 在墙上的样本不update terrain课程
-- 减小从原点开始的update terrain课程阈值
-- 取消差分计算torque
+- 在墙之外惩罚hip，墙上不惩罚hip (done)
+- 在墙上的样本不update terrain课程 (done)  
+- 减小从原点开始的update terrain课程阈值 (done)  
+- 取消差分计算torque(done)  
+- play plot motor curve (done)
