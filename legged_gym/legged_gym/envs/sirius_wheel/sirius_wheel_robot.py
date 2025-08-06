@@ -19,7 +19,7 @@ import torch, torchvision
 from .sirius_wheel_parkour_config import LeggedRobotCfg
 from .sirius_wheel_parkour_config import SiruisWheelParkourCfg
 from legged_gym.utils.video_logger import video_logger
-from legged_gym.utils.wandb_logs import wandbLogs
+# from legged_gym.utils.wandb_logs import wandbLogs
 
 #################################################################
 ############################  utils  ############################
@@ -367,10 +367,9 @@ class LeggedRobot(BaseTask):
         # self.diff_pos, self.diff_vel, self.diff_torque = self._serial2diff(self.dof_pos.clone(), self.dof_vel.clone(), torques.clone())
         # torques_clip = torch.clip(self.diff_torque, -self.torque_limits, self.torque_limits)
         # self.serial_pos, self.serial_vel, self.serial_torque = self._diff2serial(self.diff_pos.clone(), self.diff_vel.clone(), torques_clip.clone())
-
         # return self.serial_torque
 
-        return torch.clip(torques, -self.torque_limits, self.torque_limits)
+        return torch.clip(torques, -self.torque_limits, self.torque_limits) 
 
     def compute_reward(self):
         """ Compute rewards
@@ -448,7 +447,6 @@ class LeggedRobot(BaseTask):
         self.reset_buf |= self.terminate_area_buf
 
         # wandb logger
-        # Notes: time-consuming 
         # termination_trigger = []
         # if contact_cutoff[0]:
         #     termination_trigger.append("contact")
@@ -711,13 +709,15 @@ class LeggedRobot(BaseTask):
         """
         if len(env_ids) == 0:
             return
+        
         # skywoodsz: split into two parts: wall or orginal reset
         mask = torch.rand(len(env_ids), device=self.device, requires_grad=False) < 0.5
         group_origin = env_ids[mask]
         group_wall = env_ids[~mask]
-   
+
         # update curriculum
         if self.cfg.terrain.curriculum:
+            # self._update_terrain_curriculum(env_ids)
             self._update_terrain_curriculum(env_ids, group_origin)
         # avoid updating command curriculum at each step since the maximum command is common to all envs
         if self.cfg.commands.curriculum and (self.common_step_counter % self.max_episode_length == 0):
@@ -725,7 +725,8 @@ class LeggedRobot(BaseTask):
 
         # reset robot states
         self._reset_dofs(env_ids)
-        wall_reset_flag = self._reset_root_states(env_ids, group_wall)
+        # wall_reset_flag = self._reset_root_states(env_ids)
+        self._reset_root_states(env_ids, group_wall)
         self._resample_commands(env_ids)
         self.gym.simulate(self.sim)
         self.gym.fetch_results(self.sim, True)
@@ -741,10 +742,11 @@ class LeggedRobot(BaseTask):
         self.obs_history_buf[env_ids, :, :] = 0.  # reset obs history buffer
         self.contact_buf[env_ids, :, :] = 0.
         self.action_history_buf[env_ids, :, :] = 0.
-        if not wall_reset_flag:
-            self.cur_goal_idx[env_ids] = 0
-        else:
-            self.cur_goal_idx[env_ids] = 2
+
+        if len(group_origin) > 0:
+            self.cur_goal_idx[group_origin] = 0
+        if len(group_wall) > 0:
+            self.cur_goal_idx[group_wall] = 2
 
         self.reach_goal_timer[env_ids] = 0
 
@@ -1266,7 +1268,6 @@ class LeggedRobot(BaseTask):
                                               gymtorch.unwrap_tensor(self.dof_state),
                                               gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
 
-    # skywoodsz
     def _reset_root_states(self, env_ids, group_wall):
         """ Resets ROOT states position and velocities of selected environmments
             Sets base position based on the curriculum
@@ -1274,15 +1275,13 @@ class LeggedRobot(BaseTask):
         Args:
             env_ids (List[int]): Environemnt ids
         """
-        wall_reset_flag = False
         if self.custom_origins: # true
             self.root_states[env_ids] = self.base_init_state
             self.root_states[env_ids, :3] += self.env_origins[env_ids]
+            
             if self.cfg.env.randomize_start_pos:
-                init_position = torch.zeros(3, device=self.device)
-                # if np.random.rand() < 0.5: 
+                init_position = torch.zeros(3, device=self.device, requires_grad=False)
                 if len(group_wall) > 0: 
-                    wall_reset_flag = True
                     goals = self.terrain_goals[self.terrain_levels[group_wall], self.terrain_types[group_wall]]
                     goal = goals[0][1]  
                     goal -= self.env_origins[group_wall][0]
@@ -1292,13 +1291,12 @@ class LeggedRobot(BaseTask):
 
                     self.root_states[group_wall, 7:8] = torch_rand_float(1.0, 3.0, (len(group_wall), 1),
                                                     device=self.device)  # lin vel x
-
+                    
                     default_dof_pos_wall = self.default_dof_pos.repeat(len(group_wall), 1)
                     pos_neg = self.wall_right_left[self.terrain_levels[group_wall], self.terrain_types[group_wall]]
                     cols = torch.tensor([0, 4, 8, 12], device=self.device, requires_grad=False)
-                    default_dof_pos_wall[:, cols] = (0.8 * group_wall)[:, None]
+                    default_dof_pos_wall[:, cols] = (0.8 * pos_neg)[:, None]
 
-                    
                     self.dof_pos[group_wall] = default_dof_pos_wall + torch_rand_float(0., 0.2, (len(group_wall), self.num_dof),
                                                                         device=self.device)
                     self.dof_vel[group_wall] = 0.
@@ -1315,7 +1313,6 @@ class LeggedRobot(BaseTask):
                                                      gymtorch.unwrap_tensor(self.root_states),
                                                      gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
         
-        return wall_reset_flag
     
     #################################################################
     #########################  terrains  ############################
@@ -1483,7 +1480,6 @@ class LeggedRobot(BaseTask):
             self.env_origins[:, 1] = spacing * yy.flatten()[:self.num_envs]
             self.env_origins[:, 2] = 0.
 
-    # skywoodsz
     def _update_terrain_curriculum(self, env_ids, group_origin):
         """ Implements the game-inspired curriculum.
 
@@ -1540,7 +1536,6 @@ class LeggedRobot(BaseTask):
         self.cur_goals = self._gather_cur_goals()
         self.next_goals = self._gather_cur_goals(future=1)
 
-        # wanbd logger
         # if torch.any(env_ids == 0):
         #     self.wandb_logger.log_dis_to_origin(
         #         dis_to_origin[0].item(),
@@ -1548,65 +1543,6 @@ class LeggedRobot(BaseTask):
         #         threshold_upper[0].item(),
         #         threshold_lower[0].item()
         #     )
-
-    # def _update_terrain_curriculum(self, env_ids):
-    #     """ Implements the game-inspired curriculum.
-
-    #     Args:
-    #         env_ids (List[int]): ids of environments being reset
-    #     """
-    #     # Implement Terrain curriculum
-    #     if not self.init_done:
-    #         # don't change on initial reset
-    #         return
-
-    #     dis_to_origin = torch.norm(self.root_states[env_ids, :2] - self.env_origins[env_ids, :2], dim=1)
-    #     # threshold = self.commands[env_ids, 0] * self.cfg.env.episode_length_s # 6, 16; 12
-    #     goals = self.terrain_goals[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
-    #     start = self.env_origins[env_ids, :2]
-    #     end = goals[0, -1, :2]
-    #     threshold = torch.norm(end - start, dim=1) 
-    #     threshold_upper = 0.8 * threshold # 0.9
-    #     threshold_lower = 0.4 * threshold
-
-    #     move_up = dis_to_origin > threshold_upper # 12-> 0.6
-    #     move_down = dis_to_origin < threshold_lower # 12->0.3
-
-    #     # print(f"threshold:{threshold}")
-    #     # print(f"dis_to_origin:{dis_to_origin}")
-    #     # print(f"dist 1 point:{torch.norm(goals[0, 0, :2] - start)}")
-    #     # print(f"dist 2 point:{torch.norm(goals[0, 1, :2] - start)}")
-    #     # print(f"dist 3 point:{torch.norm(goals[0, 2, :2] - start)}")
-
-    #     # threshold:7.600000381469727
-    #     # dis_to_origin:tensor([0.4821])
-    #     # dist 1 point:1.5
-    #     # dist 2 point:4.609772205352783 >6 跳过
-    #     # dist 3 point:7.600000381469727
-
-    #     self.terrain_levels[env_ids] += 1 * move_up - 1 * move_down
-    #     # # Robots that solve the last level are sent to a random one
-    #     self.terrain_levels[env_ids] = torch.where(self.terrain_levels[env_ids] >= self.max_terrain_level,
-    #                                                torch.randint_like(self.terrain_levels[env_ids],
-    #                                                                   self.max_terrain_level),
-    #                                                torch.clip(self.terrain_levels[env_ids],
-    #                                                           0))  # (the minumum level is zero)
-    #     self.env_origins[env_ids] = self.terrain_origins[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
-    #     self.env_class[env_ids] = self.terrain_class[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
-
-    #     temp = self.terrain_goals[self.terrain_levels, self.terrain_types]
-    #     last_col = temp[:, -1].unsqueeze(1)
-    #     self.env_goals[:] = torch.cat((temp, last_col.repeat(1, self.cfg.env.num_future_goal_obs, 1)), dim=1)[:]
-    #     self.cur_goals = self._gather_cur_goals()
-    #     self.next_goals = self._gather_cur_goals(future=1)
-
-    #     if torch.any(env_ids == 0):
-    #         self.wandb_logger.log_dis_to_origin(
-    #             dis_to_origin[0].item(),
-    #             threshold[0].item(),
-    #             threshold_upper[0].item(),
-    #             threshold_lower[0].item()
-    #         )
     #################################################################
     ##########################  machine  ############################
     #################################################################
@@ -1704,10 +1640,7 @@ class LeggedRobot(BaseTask):
         return torch.sum(torch.square(self.diff_torque), dim=1)
 
     def _reward_hip_pos(self):
-        hip_err = torch.sum(
-                torch.square(self.dof_pos[:, self.hip_indices] - self.default_dof_pos[:, self.hip_indices]),
-                dim=1
-            ) 
+        hip_err = torch.sum(torch.square(self.dof_pos[:, self.hip_indices] - self.default_dof_pos[:, self.hip_indices]), dim=1) 
         mask = (self.cur_goal_idx != 1) # without jump
         rew = hip_err * mask.to(hip_err.dtype)
         return rew
