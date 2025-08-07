@@ -1629,7 +1629,6 @@ class LeggedRobot(BaseTask):
 
     def _reward_orientation(self):
         rew = torch.sum(torch.square(self.projected_gravity[:, :2]), dim=1)
-        # rew[self.env_class != 17] = 0. # 只惩罚17
         return rew
 
     def _reward_dof_acc(self):
@@ -1692,7 +1691,7 @@ class LeggedRobot(BaseTask):
         target_height = torch.full((self.num_envs,), 0.5, device=self.device)
         target_height[high_jump_mask] = 1.0
 
-        rew = torch.abs(target_height - self.root_states[:, 2])
+        rew = torch.exp(-torch.square(target_height - self.root_states[:, 2]) / self.cfg.rewards.tracking_sigma)
         return rew
 
     def _reward_contact_wheel(self):

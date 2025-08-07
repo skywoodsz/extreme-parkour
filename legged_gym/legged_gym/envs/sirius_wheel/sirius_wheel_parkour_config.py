@@ -273,9 +273,9 @@ class LeggedRobotCfg( BaseConfig ):
             # regularization rewards
             lin_vel_z = 0.0 # -1.0
             ang_vel_xy = -0.05
-            orientation = -10.0 # -1
+            orientation = -1 # -1
             dof_acc = -2.5e-7
-            collision = -10.
+            collision = -10
             action_rate = -0.1 
             delta_torques = 0.0 # -1.0e-7
             torques = -0.00001
@@ -283,12 +283,11 @@ class LeggedRobotCfg( BaseConfig ):
             dof_error = -0.04
             feet_stumble = 0.0 # -1
             feet_edge = 0.0 # -1
-            # regularization jitter
             dof_vel = 0.0
             dof_vel_limits = 0.0
 
-            jump_height = -10.0 # -1
-            contact_wheel = -1
+            jump_height = 1 # -10 -1
+            contact_wheel = 0.0
 
         only_positive_rewards = True # if true negative total rewards are clipped at zero (avoids early termination problems)
         tracking_sigma = 0.25 # tracking reward = exp(-error^2/sigma)
@@ -326,7 +325,7 @@ class LeggedRobotCfg( BaseConfig ):
     class video_logger:
         sampled_env_id = 50
         enable_video_logger = True # False
-        video_log_interval = 100 # 100 
+        video_log_interval = 50 # 100 
         video_length_in_sec = 5
         env_dt = 0.02
         canvas_size = [368, 240] 
@@ -366,8 +365,8 @@ class SiruisWheelParkourCfg( LeggedRobotCfg ):
     class asset(LeggedRobotCfg.asset):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/sirius_wheel/urdf/sirius_wheel.urdf'
         foot_name = "FOOT"
-        penalize_contacts_on = ["thigh", "calf"]
-        terminate_after_contacts_on = ["trunk"]
+        penalize_contacts_on = ["thigh", "calf", "trunk"]
+        terminate_after_contacts_on = [] # "trunk"
         self_collisions = 1  # 1 to disable, 0 to enable...bitwise filter
 
 ####################################################
