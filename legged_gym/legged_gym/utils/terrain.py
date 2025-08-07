@@ -69,6 +69,9 @@ class Terrain:
         # add terminate mask
         self.terminate_masks = np.zeros((cfg.num_rows, cfg.num_cols, 
                                          self.length_per_env_pixels, self.width_per_env_pixels), dtype=bool)
+        # add wall contact mask
+        self.wall_contact_masks = np.zeros((cfg.num_rows, cfg.num_cols, 
+                                         self.length_per_env_pixels, self.width_per_env_pixels), dtype=bool)
         # add wall right or left
         self.wall_right_left = np.zeros((cfg.num_rows, cfg.num_cols), dtype=np.int16)
 
@@ -367,42 +370,38 @@ class Terrain:
         
         elif choice < self.proportions[22]: # wall gap
             idx = 23
-            x_range = [1.0, 1.1+difficulty] #  # [1, 2.1]
-            y_range = [0.5, 0.6+0.2*difficulty] #  #[1.0, 2.1
+            x_range = [0.4 + 1.5 * difficulty, 0.5 + 1.5 * difficulty] #  # [1, 2.1]
+            y_range = [0.3, 0.4+0.2*difficulty] #  #[1.0, 2.1
             # wall_len = [2-difficulty, 2.1-difficulty] 
             # wall_len = [2.0, 2.1] # fix wall length
-            wall_len = [1.0 + difficulty, 1.1 + difficulty]
 
             # start from 45 deg
-            wall_height = 2.5
-            wall_width = 0.5
+            wall_height = 5.0
+            wall_width = 1.0
             # wall_width = 1.3 - difficulty
     
             parkour_wall2(terrain,
                                  x_range=x_range,
                                  y_range=y_range,
-                                 wall_len=wall_len,
                                  wall_width=wall_width,
                                  wall_height=wall_height)
             self.add_roughness(terrain)
         
         elif choice < self.proportions[23]: # wall gap
             idx = 24
-            x_range = [1.0, 1.1+difficulty] #  # [1, 2.1]
-            y_range = [0.5, 0.6+0.2*difficulty] #  #[1.0, 2.1
+            x_range = [0.4 + 1.5 * difficulty, 0.5 + 1.5 * difficulty] #  # [1, 2.1]
+            y_range = [0.3, 0.4+0.2*difficulty] #  #[1.0, 2.1
             # wall_len = [2-difficulty, 2.1-difficulty] 
             # wall_len = [2.0, 2.1] # fix wall length
-            wall_len = [1.0 + difficulty, 1.1 + difficulty]
 
             # start from 45 deg
-            wall_height = 2.5
-            wall_width = 0.5
+            wall_height = 5.0
+            wall_width = 1.0
             # wall_width = 1.3 - difficulty
     
             parkour_wall_gap2(terrain,
                                  x_range=x_range,
                                  y_range=y_range,
-                                 wall_len=wall_len,
                                  wall_width=wall_width,
                                  wall_height=wall_height)
             self.add_roughness(terrain)
@@ -438,6 +437,7 @@ class Terrain:
         self.goals[i, j, :, :2] = terrain.goals + [i * self.env_length, j * self.env_width]
         self.terminate_masks[i, j, :] = terrain.terminate_mask[:] 
         self.wall_right_left[i, j] = terrain.pos_neg
+        self.wall_contact_masks[i, j, :] = terrain.wall_contact_area[:]
         # self.env_slope_vec[i, j] = terrain.slope_vector
 
 def gap_terrain(terrain, gap_size, platform_size=1.):
@@ -504,20 +504,21 @@ def gap_parkour_terrain(terrain, difficulty, platform_size=2.):
     #                 terrain.height_field_raw[i, j] = int(height)
 
 def parkour_wall_gap2(terrain,
-                         platform_len=2.5, 
                          x_range=[0.1, 0.2], 
                          y_range=[0.5, 1.0], 
-                         wall_len=[2.0, 2.1],
+                         wall_len=[10.0, 10.1],
                          wall_width=0.6,
                          wall_height=1.0
                          ):
     goals = np.zeros((3, 2)) # 3, 2
     terrain.terminate_mask = np.zeros_like(terrain.height_field_raw, dtype=bool)
+    terrain.wall_contact_area = np.zeros_like(terrain.height_field_raw, dtype=bool)
     terrain.pos_neg = 1
 
     gap_height = np.random.uniform(0.1, 5.0)
     terrain.height_field_raw[:] = -round(gap_height / terrain.vertical_scale) # gap
     terrain.terminate_mask[:] = True 
+    terrain.wall_contact_area[:] = False
 
     mid_y = terrain.length // 2 
     wall_len = np.random.uniform(*wall_len)
@@ -525,67 +526,62 @@ def parkour_wall_gap2(terrain,
     wall_len = round(wall_len / terrain.horizontal_scale)
     wall_width = round(wall_width / terrain.horizontal_scale)
     wall_height = round(wall_height / terrain.vertical_scale)
-    platform_len = round(platform_len / terrain.horizontal_scale)
-    dis_x_min = wall_len + round(x_range[0] / terrain.horizontal_scale)
-    dis_x_max = wall_len + round(x_range[1] / terrain.horizontal_scale)
     dis_y_min = round(y_range[0] / terrain.horizontal_scale)
     dis_y_max = round(y_range[1] / terrain.horizontal_scale)
 
-    platform_height = 0.0
-    platform_height = round(platform_height / terrain.vertical_scale)
-    terrain.height_field_raw[0:platform_len, :] = platform_height
-    terrain.terminate_mask[0:platform_len, :] = False
-    
-    dis_x = platform_len 
-    random_x = np.random.randint(dis_x_min, dis_x_max) 
-    dis_x += random_x // 2
-    goals[0] = [dis_x, mid_y]
-    dis_x += random_x // 2
+    # for goals
+    goal_start_x = round(4.0 / terrain.horizontal_scale)
+    jumping_dis_x_min = round(x_range[0] / terrain.horizontal_scale)
+    jumping_dis_x_max = round(x_range[1] / terrain.horizontal_scale) # todo: tune
+    jumping_dis_random_x = np.random.randint(jumping_dis_x_min, jumping_dis_x_max) 
+    goal_jumping_end_x = goal_start_x + jumping_dis_random_x
+    goal_end_x = goal_jumping_end_x + round(2.0 / terrain.horizontal_scale)
 
-    left_right_flag = np.random.randint(0, 2) 
-    pos_neg = round(2*(left_right_flag - 0.5)) # 1 -1
-    terrain.pos_neg = pos_neg
-    
-    dis_y = mid_y + pos_neg * np.random.randint(dis_y_min, dis_y_max)
-
-    if pos_neg == 1: 
-        heights = np.tile(np.linspace(0.0, wall_height, wall_width), (wall_len, 1)) 
-        terrain.terminate_mask[dis_x-wall_len//2:dis_x+wall_len//2, dis_y-wall_width//2: int(dis_y+ wall_width/2 + 0.1)] = False
-    else: 
-        heights = np.tile(np.linspace(wall_height, 0.0, wall_width), (wall_len, 1))
-        terrain.terminate_mask[dis_x-wall_len//2:dis_x+wall_len//2, dis_y-wall_width//2: int(dis_y+ wall_width/2 - 0.1)] = False 
-    
-    terrain.height_field_raw[dis_x-wall_len//2:dis_x+wall_len//2, dis_y-wall_width//2: int(dis_y+ wall_width/2 + 0.5)] = heights.astype(int)
-
-    # goals[1] = [dis_x, dis_y]
-    goals[1] = [dis_x, mid_y]
-
-    final_platform_end = dis_x + wall_len // 2 + round(0.05 // terrain.horizontal_scale)
-    final_platform_start = dis_x - wall_len // 2 - round(0.05 // terrain.horizontal_scale)
-    terrain.height_field_raw[final_platform_end:, :] = platform_height
-    terrain.height_field_raw[:final_platform_start, :] = platform_height
-    terrain.terminate_mask[final_platform_end:, :] = False
-    terrain.terminate_mask[:final_platform_start, :] = False
-
-    final_dis_x = dis_x + random_x
-    goals[2] = [final_dis_x, mid_y]
-
+    goals[0] = [goal_start_x - round(0.6 / terrain.horizontal_scale), mid_y]
+    goals[1] = [goal_jumping_end_x + round(0.6 / terrain.horizontal_scale), mid_y]
+    goals[2] = [goal_end_x, mid_y]
     terrain.goals = goals * terrain.horizontal_scale # m
 
+    terrain.height_field_raw[:goal_start_x, :] = 0
+    terrain.terminate_mask[:goal_start_x, :] = False 
+    terrain.height_field_raw[goal_jumping_end_x:, :] = 0
+    terrain.terminate_mask[goal_jumping_end_x:, :] = False 
+
+    # for wall
+    dis_x = round(0.05 // terrain.horizontal_scale)
+    left_right_flag = np.random.randint(0, 2) 
+    pos_neg = round(2*(left_right_flag - 0.5)) # 1 -1
+    dis_y = mid_y + pos_neg * (np.random.randint(dis_y_min, dis_y_max) + wall_width//2)
+    terrain.pos_neg = pos_neg
+    
+    if pos_neg == 1: 
+        heights = np.tile(np.linspace(0.0, wall_height, wall_width), (wall_len, 1)) 
+    else: 
+        heights = np.tile(np.linspace(wall_height, 0.0, wall_width), (wall_len, 1))
+    terrain.height_field_raw[dis_x:dis_x+wall_len, dis_y-wall_width//2: int(dis_y+ wall_width/2 + 0.5)] = heights.astype(int)
+    terrain.terminate_mask[dis_x:dis_x+wall_len, dis_y-wall_width//2: int(dis_y+ wall_width/2 + 0.5)] = False 
+
+    # for wall contact area
+    terrain.wall_contact_area[goal_start_x:goal_jumping_end_x, dis_y-wall_width//2: int(dis_y+ wall_width/2 + 0.5)] = True
+
+    
+
 def parkour_wall2(terrain,
-                         platform_len=2.5, 
                          x_range=[0.1, 0.2], 
                          y_range=[0.5, 1.0], 
-                         wall_len=[2.0, 2.1],
+                         wall_len=[10.0, 10.1],
                          wall_width=0.6,
                          wall_height=1.0
                          ):
     goals = np.zeros((3, 2)) # 3, 2
     terrain.terminate_mask = np.zeros_like(terrain.height_field_raw, dtype=bool)
+    terrain.wall_contact_area = np.zeros_like(terrain.height_field_raw, dtype=bool)
     terrain.pos_neg = 1
 
-    terrain.height_field_raw[:] = 0.0 # gap
+    gap_height = 0.0
+    terrain.height_field_raw[:] = -round(gap_height / terrain.vertical_scale) # gap
     terrain.terminate_mask[:] = True 
+    terrain.wall_contact_area[:] = False
 
     mid_y = terrain.length // 2 
     wall_len = np.random.uniform(*wall_len)
@@ -593,52 +589,44 @@ def parkour_wall2(terrain,
     wall_len = round(wall_len / terrain.horizontal_scale)
     wall_width = round(wall_width / terrain.horizontal_scale)
     wall_height = round(wall_height / terrain.vertical_scale)
-    platform_len = round(platform_len / terrain.horizontal_scale)
-    dis_x_min = wall_len + round(x_range[0] / terrain.horizontal_scale)
-    dis_x_max = wall_len + round(x_range[1] / terrain.horizontal_scale)
     dis_y_min = round(y_range[0] / terrain.horizontal_scale)
     dis_y_max = round(y_range[1] / terrain.horizontal_scale)
 
-    platform_height = 0.0
-    platform_height = round(platform_height / terrain.vertical_scale)
-    terrain.height_field_raw[0:platform_len, :] = platform_height
-    terrain.terminate_mask[0:platform_len, :] = False
-    
-    dis_x = platform_len 
-    random_x = np.random.randint(dis_x_min, dis_x_max) 
-    dis_x += random_x // 2
-    goals[0] = [dis_x, mid_y]
-    dis_x += random_x // 2
+    # for goals
+    goal_start_x = round(4.0 / terrain.horizontal_scale)
+    jumping_dis_x_min = round(x_range[0] / terrain.horizontal_scale)
+    jumping_dis_x_max = round(x_range[1] / terrain.horizontal_scale) # todo: tune
+    jumping_dis_random_x = np.random.randint(jumping_dis_x_min, jumping_dis_x_max) 
+    goal_jumping_end_x = goal_start_x + jumping_dis_random_x
+    goal_end_x = goal_jumping_end_x + round(2.0 / terrain.horizontal_scale)
 
+    goals[0] = [goal_start_x - round(0.6 / terrain.horizontal_scale), mid_y]
+    goals[1] = [goal_jumping_end_x + round(0.6 / terrain.horizontal_scale), mid_y]
+    goals[2] = [goal_end_x, mid_y]
+    terrain.goals = goals * terrain.horizontal_scale # m
+
+    terrain.height_field_raw[:goal_start_x, :] = 0
+    terrain.terminate_mask[:goal_start_x, :] = False 
+    terrain.height_field_raw[goal_jumping_end_x:, :] = 0
+    terrain.terminate_mask[goal_jumping_end_x:, :] = False 
+
+    # for wall
+    dis_x = round(0.05 // terrain.horizontal_scale)
     left_right_flag = np.random.randint(0, 2) 
     pos_neg = round(2*(left_right_flag - 0.5)) # 1 -1
+    dis_y = mid_y + pos_neg * (np.random.randint(dis_y_min, dis_y_max) + wall_width//2)
     terrain.pos_neg = pos_neg
     
-    dis_y = mid_y + pos_neg * np.random.randint(dis_y_min, dis_y_max)
-
     if pos_neg == 1: 
         heights = np.tile(np.linspace(0.0, wall_height, wall_width), (wall_len, 1)) 
-        terrain.terminate_mask[dis_x-wall_len//2:dis_x+wall_len//2, dis_y-wall_width//2: int(dis_y+ wall_width/2 + 0.1)] = False
     else: 
         heights = np.tile(np.linspace(wall_height, 0.0, wall_width), (wall_len, 1))
-        terrain.terminate_mask[dis_x-wall_len//2:dis_x+wall_len//2, dis_y-wall_width//2: int(dis_y+ wall_width/2 - 0.1)] = False 
-    
-    terrain.height_field_raw[dis_x-wall_len//2:dis_x+wall_len//2, dis_y-wall_width//2: int(dis_y+ wall_width/2 + 0.5)] = heights.astype(int)
+    terrain.height_field_raw[dis_x:dis_x+wall_len, dis_y-wall_width//2: int(dis_y+ wall_width/2 + 0.5)] = heights.astype(int)
+    terrain.terminate_mask[dis_x:dis_x+wall_len, dis_y-wall_width//2: int(dis_y+ wall_width/2 + 0.5)] = False 
 
-    # goals[1] = [dis_x, dis_y]
-    goals[1] = [dis_x, mid_y]
+    # for wall contact area
+    terrain.wall_contact_area[goal_start_x:goal_jumping_end_x, dis_y-wall_width//2: int(dis_y+ wall_width/2 + 0.5)] = True
 
-    final_platform_end = dis_x + wall_len // 2 + round(0.05 // terrain.horizontal_scale)
-    final_platform_start = dis_x - wall_len // 2 - round(0.05 // terrain.horizontal_scale)
-    terrain.height_field_raw[final_platform_end:, :] = platform_height
-    terrain.height_field_raw[:final_platform_start, :] = platform_height
-    terrain.terminate_mask[final_platform_end:, :] = False
-    terrain.terminate_mask[:final_platform_start, :] = False
-
-    final_dis_x = dis_x + random_x 
-    goals[2] = [final_dis_x, mid_y]
-
-    terrain.goals = goals * terrain.horizontal_scale # m
 
 def parkour_wall_gap(terrain,
                          platform_len=2.5, 

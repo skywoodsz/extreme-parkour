@@ -238,6 +238,7 @@ class LeggedRobot(BaseTask):
             self._draw_goals()
             self._draw_feet()
             self._draw_terminate()
+            self._draw_wall_contact()
             if self.cfg.depth.use_camera:
                 window_name = "Depth Image"
                 cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
@@ -276,8 +277,8 @@ class LeggedRobot(BaseTask):
             self.delta_next_yaw[:, None],  # 下一个yaw # 3
             0 * self.commands[:, 0:2],
             self.commands[:, 0:1], 
-            0 * (self.env_class != 17).float()[:, None],
-            0 * (self.env_class == 17).float()[:, None],
+            (self.cur_goal_idx != 1).float()[:, None],
+            (self.cur_goal_idx == 1).float()[:, None],
             self.reindex((self.dof_pos - self.default_dof_pos_all) * self.obs_scales.dof_pos),
             (self.reindex(self.dof_vel * self.obs_scales.dof_vel)),
             self.reindex(self.action_history_buf[:, -1]),  
@@ -711,7 +712,7 @@ class LeggedRobot(BaseTask):
             return
         
         # skywoodsz: split into two parts: wall or orginal reset
-        mask = torch.rand(len(env_ids), device=self.device, requires_grad=False) < 0.5
+        mask = torch.rand(len(env_ids), device=self.device, requires_grad=False) < 0.6 # 0.8
         group_origin = env_ids[mask]
         group_wall = env_ids[~mask]
 
@@ -746,7 +747,7 @@ class LeggedRobot(BaseTask):
         if len(group_origin) > 0:
             self.cur_goal_idx[group_origin] = 0
         if len(group_wall) > 0:
-            self.cur_goal_idx[group_wall] = 2
+            self.cur_goal_idx[group_wall] = 1
 
         self.reach_goal_timer[env_ids] = 0
 
@@ -1020,7 +1021,21 @@ class LeggedRobot(BaseTask):
         origin = [self.terrain_levels[self.lookat_id] * self.terrain.cfg.terrain_length, self.terrain_types[self.lookat_id] * self.terrain.cfg.terrain_width]
         for i in range(indices.shape[0]):
             x = indices[i, 0] * self.terrain.cfg.horizontal_scale + origin[0]
+            y = indices[i, 1] * self.terrain.cfg.horizontal_scale + origin[1] 
+            # bug: can not get the correct height
+            z = self.height_samples[indices[i, 0], indices[i, 1]].cpu().item() * self.terrain.cfg.vertical_scale # m
+            pose = gymapi.Transform(gymapi.Vec3(x, y, z), r=None)
+            gymutil.draw_lines(sphere_geom, self.gym, self.viewer, self.envs[self.lookat_id], pose)
+
+    def _draw_wall_contact(self):
+        sphere_geom = gymutil.WireframeSphereGeometry(0.02, 4, 4, None, color=(0, 1, 0)) # Green
+        wall_contact_masks = self.wall_contact_masks[self.terrain_levels[self.lookat_id], self.terrain_types[self.lookat_id]]
+        indices = torch.nonzero(wall_contact_masks, as_tuple=False)
+        origin = [self.terrain_levels[self.lookat_id] * self.terrain.cfg.terrain_length, self.terrain_types[self.lookat_id] * self.terrain.cfg.terrain_width]
+        for i in range(indices.shape[0]):
+            x = indices[i, 0] * self.terrain.cfg.horizontal_scale + origin[0]
             y = indices[i, 1] * self.terrain.cfg.horizontal_scale + origin[1]
+            # bug: can not get the correct height
             z = self.height_samples[indices[i, 0], indices[i, 1]].cpu().item() * self.terrain.cfg.vertical_scale # m
             pose = gymapi.Transform(gymapi.Vec3(x, y, z), r=None)
             gymutil.draw_lines(sphere_geom, self.gym, self.viewer, self.envs[self.lookat_id], pose)
@@ -1283,13 +1298,14 @@ class LeggedRobot(BaseTask):
                 init_position = torch.zeros(3, device=self.device, requires_grad=False)
                 if len(group_wall) > 0: 
                     goals = self.terrain_goals[self.terrain_levels[group_wall], self.terrain_types[group_wall]]
-                    goal = goals[0][1]  
-                    goal -= self.env_origins[group_wall][0]
-                    init_position[:2] = goal[:2]
-                    init_position[2] = 1.2
+                    start_goal = goals[0][0]
+                    end_goal = goals[0][1]
+                    init_position = start_goal - self.env_origins[group_wall][0] + (end_goal - start_goal) / 2 
+                    init_position[0] = init_position[0] + torch_rand_float(-0.5, 0.5, (1, 1), device=self.device) * (end_goal[0] - start_goal[0])
+                    init_position[2] = 0.6
                     self.root_states[group_wall, :3] += init_position
-
-                    self.root_states[group_wall, 7:8] = torch_rand_float(1.0, 3.0, (len(group_wall), 1),
+                    
+                    self.root_states[group_wall, 7:8] = torch_rand_float(0.0, 1.6, (len(group_wall), 1),
                                                     device=self.device)  # lin vel x
                     
                     default_dof_pos_wall = self.default_dof_pos.repeat(len(group_wall), 1)
@@ -1464,9 +1480,10 @@ class LeggedRobot(BaseTask):
             self.cur_goals = self._gather_cur_goals()
             self.next_goals = self._gather_cur_goals(future=1)
 
-            # add terminate terrain mask
+            # add terrain mask
             self.terminate_masks = torch.from_numpy(self.terrain.terminate_masks).to(self.device)
             self.wall_right_left = torch.from_numpy(self.terrain.wall_right_left).to(self.device)
+            self.wall_contact_masks = torch.from_numpy(self.terrain.wall_contact_masks).to(self.device)
            
         else:
             self.custom_origins = False
@@ -1499,25 +1516,18 @@ class LeggedRobot(BaseTask):
             start = self.env_origins[group_origin, :2]
             end = goals[0, -1, :2]
             threshold = torch.norm(end - start, dim=1) 
-            threshold_upper = 0.7 * threshold # 0.9
-            threshold_lower = 0.2 * threshold
+            threshold_upper = 0.8 * threshold 
+            threshold_lower = torch.norm(goals[0, 0, :2] - start, dim=1)
 
             move_up = dis_to_origin > threshold_upper # 12-> 0.6
             move_down = dis_to_origin < threshold_lower # 12->0.3
 
             # print(f"threshold:{threshold}")
-            # print(f"dis_to_origin:{dis_to_origin}")
-            # print(f"dist 1 point:{torch.norm(goals[0, 0, :2] - start)}")
-            # print(f"dist 2 point:{torch.norm(goals[0, 1, :2] - start)}")
-            # print(f"dist 3 point:{torch.norm(goals[0, 2, :2] - start)}")
-
-            # threshold:7.600000381469727
-            # dis_to_origin:tensor([0.4821])
-            # dist 1 point:1.5
-            # dist 2 point:4.609772205352783 >6 跳过
-            # dist 3 point:7.600000381469727
+            # print(f"threshold_upper:{threshold_upper}")
+            # print(f"threshold_lower:{threshold_lower}")
 
             self.terrain_levels[group_origin] += 1 * move_up - 1 * move_down
+
 
         # # Robots that solve the last level are sent to a random one
         self.terrain_levels[env_ids] = torch.where(self.terrain_levels[env_ids] >= self.max_terrain_level,
@@ -1611,7 +1621,6 @@ class LeggedRobot(BaseTask):
     def _reward_lin_vel_z(self):
         # 惩罚 vel z
         rew = torch.square(self.base_lin_vel[:, 2])
-        rew[self.env_class != 17] *= 0.5 ## todo: 为什么排除17
         return rew
 
     def _reward_ang_vel_xy(self):
@@ -1680,11 +1689,40 @@ class LeggedRobot(BaseTask):
     def _reward_jump_height(self):
         # 在cur_gaols 为1, 2 -> 高height，否则为低height
         high_jump_mask = (self.cur_goal_idx == 1)   # 当前目标索引为 1 或 2 的 agent
-        target_height = torch.full((self.num_envs,), 0.6, device=self.device)
-        target_height[high_jump_mask] = 1.2
+        target_height = torch.full((self.num_envs,), 0.5, device=self.device)
+        target_height[high_jump_mask] = 1.0
 
-        rew = torch.square(target_height - self.root_states[:, 2])
-
+        rew = torch.abs(target_height - self.root_states[:, 2])
         return rew
 
+    def _reward_contact_wheel(self):
+        
+        feet_pos = self.rigid_body_states[:, self.feet_indices, :2]
+
+        origins = torch.stack([
+            self.terrain_levels * self.terrain.cfg.terrain_length,
+            self.terrain_types * self.terrain.cfg.terrain_width
+        ], dim=-1).to(self.device)
+
+        feet_pos -= origins.unsqueeze(1)
+
+        feet_pos_normalized = feet_pos / self.terrain.cfg.horizontal_scale
+        feet_pos_grid = feet_pos_normalized.long().to(self.device)
+
+        contact_wall_masks = self.wall_contact_masks[self.terrain_levels, self.terrain_types]
+
+        grid_x = torch.clamp(feet_pos_grid[..., 0], 0, contact_wall_masks.shape[1] - 1)
+        grid_y = torch.clamp(feet_pos_grid[..., 1], 0, contact_wall_masks.shape[2] - 1)
+        contact_wall_values = contact_wall_masks[
+            torch.arange(self.num_envs, device=self.device).unsqueeze(1),
+            grid_x,
+            grid_y
+        ]
+
+        feet_contact_wall = contact_wall_values & self.contact_filt
+        rew = 4 - torch.sum(feet_contact_wall, dim=-1) 
+
+        mask = (self.cur_goal_idx == 1) #  jump
+        rew = rew * mask.to(rew.dtype)
+        return rew
         

@@ -77,7 +77,7 @@ def test_env(args):
                                     "parkour_wall": 0.0,
                                     "parkour_wall_gap": 0.0,
                                     "parkour_wall2": 1.0,
-                                    "parkour_wall_gap2": 1.0}
+                                    "parkour_wall_gap2": 0.0}
     
     env_cfg.terrain.terrain_proportions = list(env_cfg.terrain.terrain_dict.values())
     env_cfg.terrain.curriculum = True
