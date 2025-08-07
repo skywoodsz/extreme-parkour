@@ -63,3 +63,11 @@
 - 减小从原点开始的update terrain课程阈值 (done)  
 - 取消差分计算torque(done)  
 - play plot motor curve (done)
+1.2.3
+- 加入action rate防止发散
+- 编码goal
+- 添加contact wall reward鼓励蹬墙
+- reset x作随机
+- reset vel < max = 1.6m/s
+- 整定jumping gap大小
+- tune jump_height orientation 参数

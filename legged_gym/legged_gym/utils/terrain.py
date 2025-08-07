@@ -532,7 +532,7 @@ def parkour_wall_gap2(terrain,
     # for goals
     goal_start_x = round(4.0 / terrain.horizontal_scale)
     jumping_dis_x_min = round(x_range[0] / terrain.horizontal_scale)
-    jumping_dis_x_max = round(x_range[1] / terrain.horizontal_scale) # todo: tune
+    jumping_dis_x_max = round(x_range[1] / terrain.horizontal_scale) 
     jumping_dis_random_x = np.random.randint(jumping_dis_x_min, jumping_dis_x_max) 
     goal_jumping_end_x = goal_start_x + jumping_dis_random_x
     goal_end_x = goal_jumping_end_x + round(2.0 / terrain.horizontal_scale)
@@ -595,7 +595,7 @@ def parkour_wall2(terrain,
     # for goals
     goal_start_x = round(4.0 / terrain.horizontal_scale)
     jumping_dis_x_min = round(x_range[0] / terrain.horizontal_scale)
-    jumping_dis_x_max = round(x_range[1] / terrain.horizontal_scale) # todo: tune
+    jumping_dis_x_max = round(x_range[1] / terrain.horizontal_scale) 
     jumping_dis_random_x = np.random.randint(jumping_dis_x_min, jumping_dis_x_max) 
     goal_jumping_end_x = goal_start_x + jumping_dis_random_x
     goal_end_x = goal_jumping_end_x + round(2.0 / terrain.horizontal_scale)
