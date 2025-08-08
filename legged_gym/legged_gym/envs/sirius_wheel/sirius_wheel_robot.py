@@ -19,7 +19,7 @@ import torch, torchvision
 from .sirius_wheel_parkour_config import LeggedRobotCfg
 from .sirius_wheel_parkour_config import SiruisWheelParkourCfg
 from legged_gym.utils.video_logger import video_logger
-# from legged_gym.utils.wandb_logs import wandbLogs
+from legged_gym.utils.wandb_logs import wandbLogs
 
 #################################################################
 ############################  utils  ############################
@@ -86,8 +86,8 @@ class LeggedRobot(BaseTask):
         self.total_env_steps_counter = 0
 
         # wandb logger
-        # conditions = ["contact", "roll", "pitch", "reach_goal", "height", "time_out", "terminate_area"]
-        # self.wandb_logger = wandbLogs(conditions, self.dof_names)
+        conditions = ["contact", "roll", "pitch", "reach_goal", "height", "time_out", "terminate_area"]
+        self.wandb_logger = wandbLogs(conditions, self.dof_names)
 
         self.reset_idx(torch.arange(self.num_envs, device=self.device))
         self.post_physics_step()
@@ -428,7 +428,7 @@ class LeggedRobot(BaseTask):
         # self.reset_buf = torch.any(torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 1., dim=1)
         contact_cutoff = torch.any(torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 1., dim=1)
 
-        roll_cutoff = torch.abs(self.roll) > 1.5
+        # roll_cutoff = torch.abs(self.roll) > 1.5
         pitch_cutoff = torch.abs(self.pitch) > 1.5
         reach_goal_cutoff = self.cur_goal_idx >= self.cfg.terrain.num_goals
         height_cutoff = self.root_states[:, 2] < -0.25
@@ -442,10 +442,12 @@ class LeggedRobot(BaseTask):
         self.reset_buf |= reach_goal_cutoff
         self.reset_buf |= contact_cutoff 
         self.reset_buf |= self.time_out_buf
-        self.reset_buf |= roll_cutoff
+        # self.reset_buf |= roll_cutoff
         self.reset_buf |= pitch_cutoff
         self.reset_buf |= height_cutoff
         self.reset_buf |= self.terminate_area_buf
+
+        # print(f"self.cur_goal_idx:{self.cur_goal_idx}")
 
         # wandb logger
         # termination_trigger = []
@@ -663,6 +665,7 @@ class LeggedRobot(BaseTask):
                                            dim=1) < self.cfg.env.next_goal_threshold
         self.reach_goal_timer[self.reached_goal_ids] += 1
 
+
         # 两goal跟踪
         self.target_pos_rel = self.cur_goals[:, :2] - self.root_states[:, :2]
         self.next_target_pos_rel = self.next_goals[:, :2] - self.root_states[:, :2]
@@ -712,10 +715,9 @@ class LeggedRobot(BaseTask):
             return
         
         # skywoodsz: split into two parts: wall or orginal reset
-        mask = torch.rand(len(env_ids), device=self.device, requires_grad=False) < 0.6 # 0.8
+        mask = torch.rand(len(env_ids), device=self.device, requires_grad=False) < 1.0 # 0.8
         group_origin = env_ids[mask]
         group_wall = env_ids[~mask]
-
         # update curriculum
         if self.cfg.terrain.curriculum:
             # self._update_terrain_curriculum(env_ids)
@@ -1295,36 +1297,35 @@ class LeggedRobot(BaseTask):
             self.root_states[env_ids, :3] += self.env_origins[env_ids]
             
             if self.cfg.env.randomize_start_pos:
-                init_position = torch.zeros(3, device=self.device, requires_grad=False)
                 if len(group_wall) > 0: 
                     goals = self.terrain_goals[self.terrain_levels[group_wall], self.terrain_types[group_wall]]
-                    start_goal = goals[0][0]
-                    end_goal = goals[0][1]
-                    init_position = start_goal - self.env_origins[group_wall][0] + (end_goal - start_goal) / 2 
-                    init_position[0] = init_position[0] + torch_rand_float(-0.5, 0.5, (1, 1), device=self.device) * (end_goal[0] - start_goal[0])
-                    init_position[2] = 0.6
-                    self.root_states[group_wall, :3] += init_position
+                    start_goal = goals[:, 0, :]
+                    end_goal = goals[:, 1, :]
+                    init_position = start_goal - self.env_origins[group_wall, :] + (end_goal - start_goal) / 2 
+                    # init_position[:, 0] = init_position[:, 0] + torch_rand_float(-0.5, 0.5, (1, 1), device=self.device) * (end_goal[0] - start_goal[0])
+                    init_position[:, 2] = 0.6
+                    self.root_states[group_wall, :3] += init_position[:, :3]
                     
                     self.root_states[group_wall, 7:8] = torch_rand_float(0.0, 1.6, (len(group_wall), 1),
                                                     device=self.device)  # lin vel x
                     
-                    default_dof_pos_wall = self.default_dof_pos.repeat(len(group_wall), 1)
-                    pos_neg = self.wall_right_left[self.terrain_levels[group_wall], self.terrain_types[group_wall]]
-                    cols = torch.tensor([0, 4, 8, 12], device=self.device, requires_grad=False)
-                    default_dof_pos_wall[:, cols] = (0.8 * pos_neg)[:, None]
+                    # default_dof_pos_wall = self.default_dof_pos.repeat(len(group_wall), 1)
+                    # pos_neg = self.wall_right_left[self.terrain_levels[group_wall], self.terrain_types[group_wall]]
+                    # cols = torch.tensor([0, 4, 8, 12], device=self.device, requires_grad=False)
+                    # default_dof_pos_wall[:, cols] = (0.8 * pos_neg)[:, None]
 
-                    self.dof_pos[group_wall] = default_dof_pos_wall + torch_rand_float(0., 0.2, (len(group_wall), self.num_dof),
-                                                                        device=self.device)
-                    self.dof_vel[group_wall] = 0.
+                    # self.dof_pos[group_wall] = default_dof_pos_wall + torch_rand_float(0., 0.2, (len(group_wall), self.num_dof),
+                    #                                                     device=self.device)
+                    # self.dof_vel[group_wall] = 0.
 
         else:
             self.root_states[env_ids] = self.base_init_state
             self.root_states[env_ids, :3] += self.env_origins[env_ids]
 
         env_ids_int32 = env_ids.to(dtype=torch.int32)
-        self.gym.set_dof_state_tensor_indexed(self.sim,
-                                              gymtorch.unwrap_tensor(self.dof_state),
-                                              gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
+        # self.gym.set_dof_state_tensor_indexed(self.sim,
+        #                                       gymtorch.unwrap_tensor(self.dof_state),
+        #                                       gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
         self.gym.set_actor_root_state_tensor_indexed(self.sim,
                                                      gymtorch.unwrap_tensor(self.root_states),
                                                      gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
@@ -1509,22 +1510,19 @@ class LeggedRobot(BaseTask):
             return
 
         # for origin
-        if len(group_origin) > 0:
+        if len(group_origin) > 0: # bug
             dis_to_origin = torch.norm(self.root_states[group_origin, :2] - self.env_origins[group_origin, :2], dim=1)
             # threshold = self.commands[env_ids, 0] * self.cfg.env.episode_length_s # 6, 16; 12
             goals = self.terrain_goals[self.terrain_levels[group_origin], self.terrain_types[group_origin]]
+
             start = self.env_origins[group_origin, :2]
-            end = goals[0, -1, :2]
+            end = goals[:, -1, :2]
             threshold = torch.norm(end - start, dim=1) 
             threshold_upper = 0.8 * threshold 
-            threshold_lower = torch.norm(goals[0, 0, :2] - start, dim=1)
+            threshold_lower = torch.norm(goals[:, 0, :2] - start, dim=1)
 
             move_up = dis_to_origin > threshold_upper # 12-> 0.6
             move_down = dis_to_origin < threshold_lower # 12->0.3
-
-            # print(f"threshold:{threshold}")
-            # print(f"threshold_upper:{threshold_upper}")
-            # print(f"threshold_lower:{threshold_lower}")
 
             self.terrain_levels[group_origin] += 1 * move_up - 1 * move_down
 
@@ -1546,13 +1544,16 @@ class LeggedRobot(BaseTask):
         self.cur_goals = self._gather_cur_goals()
         self.next_goals = self._gather_cur_goals(future=1)
 
-        # if torch.any(env_ids == 0):
-        #     self.wandb_logger.log_dis_to_origin(
-        #         dis_to_origin[0].item(),
-        #         threshold[0].item(),
-        #         threshold_upper[0].item(),
-        #         threshold_lower[0].item()
-        #     )
+
+        
+        if torch.any(env_ids == 0):
+            self.wandb_logger.log_terrain_level(self.terrain_levels[0])
+            self.wandb_logger.log_dis_to_origin(
+                dis_to_origin[0].item(),
+                threshold[0].item(),
+                threshold_upper[0].item(),
+                threshold_lower[0].item()
+            )
     #################################################################
     ##########################  machine  ############################
     #################################################################
@@ -1608,14 +1609,15 @@ class LeggedRobot(BaseTask):
         rew = torch.exp(-torch.abs(self.target_yaw - self.yaw))
         return rew
     
-    # def _reward_jump_height(self):
-    #     # 在cur_gaols 为1, 2 -> 高height，否则为低height
-    #     high_jump_mask = (self.cur_goal_idx == 1) | (self.cur_goal_idx == 2)  # 当前目标索引为 1 或 2 的 agent
-    #     target_height = torch.full((self.num_envs,), 0.6, device=self.device)
-    #     target_height[high_jump_mask] = 1.2
-    #     tracking_height_error = torch.square(target_height - self.root_states[:, 2])
-    #     # print(target_height)
-    #     return torch.exp(-tracking_height_error/self.cfg.rewards.tracking_sigma)
+    
+    def _reward_destination(self):
+        final_goals = self.terrain_goals[self.terrain_levels, self.terrain_types][:, -1, :2]
+        dist_to_final = torch.norm(self.root_states[:, :2] - final_goals, dim=1)
+
+        at_destination = dist_to_final < self.cfg.env.next_goal_threshold
+        rew = torch.zeros(self.num_envs, device=self.device)
+        rew[at_destination] = 10.0
+        return rew
 
     ############ 正则惩罚  ############
     def _reward_lin_vel_z(self):
@@ -1628,7 +1630,14 @@ class LeggedRobot(BaseTask):
         return torch.sum(torch.square(self.base_ang_vel[:, :2]), dim=1)
 
     def _reward_orientation(self):
-        rew = torch.sum(torch.square(self.projected_gravity[:, :2]), dim=1)
+        rew = (self.cur_goal_idx != 1) * torch.sum(torch.square(self.projected_gravity[:, :2]), dim=1)
+        return rew
+    
+    def _reward_wall_orientation(self):
+        # left: 1; right: -1
+        pos_neg = self.wall_right_left[self.terrain_levels, self.terrain_types]
+        target_roll = 0.785 * pos_neg
+        rew = (self.cur_goal_idx == 1) * (self.terrain_levels > 3) * torch.sum(torch.square(self.roll  - target_roll))
         return rew
 
     def _reward_dof_acc(self):

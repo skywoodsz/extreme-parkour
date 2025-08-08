@@ -42,14 +42,14 @@ import wandb
 
 def test_env(args):
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
-    env_cfg.env.num_envs =  10
+    env_cfg.env.num_envs =  16
     env_cfg.video_logger.enable_video_logger = False
 
     wandb.init(project="legged_wheel_parkour", name=args.exptid,
             entity="skywoodszcn-the-chinese-university-of-hong-kong",
             group="disabled", mode="disabled", dir="../../logs")
 
-    env_cfg.env.episode_length_s = 60
+    env_cfg.env.episode_length_s = 5
     env_cfg.commands.resampling_time = 60
     env_cfg.terrain.num_rows = 10
     env_cfg.terrain.num_cols = 2
@@ -76,8 +76,8 @@ def test_env(args):
                                     "demo": 0.0,
                                     "parkour_wall": 0.0,
                                     "parkour_wall_gap": 0.0,
-                                    "parkour_wall2": 1.0,
-                                    "parkour_wall_gap2": 0.0}
+                                    "parkour_wall2": 0.0,
+                                    "parkour_wall_gap2": 1.0}
     
     env_cfg.terrain.terrain_proportions = list(env_cfg.terrain.terrain_dict.values())
     env_cfg.terrain.curriculum = True

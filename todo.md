@@ -71,3 +71,13 @@
 - reset vel < max = 1.6m/s
 - 整定jumping gap大小
 - tune jump_height orientation 参数
+1.2.4
+- 固定 std = 0.5
+- 提高vision前瞻
+- 全gap地形
+- 增加终点reward鼓励机器人不要停在终点附近
+- orientation只在非jumping过程生效,鼓励机器人在jumping中探索更好的orientation
+- 取消roll terminate
+- 在wanbd logger中添加0号agent terrain level
+- 解决update terrain的bug
+- 增大contact wheel的scale

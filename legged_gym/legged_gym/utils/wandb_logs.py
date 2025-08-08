@@ -34,16 +34,6 @@ class wandbLogs:
         }
         wandb.log(wandb_dict, commit=False)
 
-        # row = [
-        #     datetime.datetime.now().strftime("%H:%M:%S"),
-        #     self.table_episode_count
-        # ]
-        # for cond in self.conditions:
-        #     row.append("✅" if cond in triggered_conditions else "❌")
-
-        # self.table.add_data(*row)
-        # wandb.log({"reset_conditions": self.table,
-        #            "reset_step": self.table_episode_count}, commit=False)
     
     def log_joint_states(self, dof_vel=None, dof_torque=None):
         self.joint_episode_count += 1
@@ -59,4 +49,8 @@ class wandbLogs:
                       "threshold": threshold,
                       "threshold_upper": threshold_upper,
                       "threshold_lower": threshold_lower}
+        wandb.log(wandb_dict, commit=False)
+    
+    def log_terrain_level(self, level):
+        wandb_dict = {"level": level}
         wandb.log(wandb_dict, commit=False)

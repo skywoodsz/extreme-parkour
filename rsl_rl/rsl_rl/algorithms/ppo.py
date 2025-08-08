@@ -158,6 +158,8 @@ class PPO:
         self.transition.observations = obs
         self.transition.critic_observations = critic_obs
 
+        self.actor_critic.reset_std(0.5, 16, device=self.device)
+
         return self.transition.actions
     
     def process_env_step(self, rewards, dones, infos):
