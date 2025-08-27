@@ -1635,6 +1635,7 @@ class LeggedRobot(BaseTask):
     
     def _reward_wall_orientation(self):
         # left: 1; right: -1
+        # todo: check
         pos_neg = self.wall_right_left[self.terrain_levels, self.terrain_types]
         target_roll = 0.785 * pos_neg
         rew = (self.cur_goal_idx == 1) * (self.terrain_levels > 3) * torch.sum(torch.square(self.roll  - target_roll))
@@ -1700,7 +1701,7 @@ class LeggedRobot(BaseTask):
         target_height = torch.full((self.num_envs,), 0.5, device=self.device)
         target_height[high_jump_mask] = 1.0
 
-        rew = torch.exp(-torch.square(target_height - self.root_states[:, 2]) / self.cfg.rewards.tracking_sigma)
+        rew = high_jump_mask * torch.exp(-torch.square(target_height - self.root_states[:, 2]) / self.cfg.rewards.tracking_sigma)
         return rew
 
     def _reward_contact_wheel(self):

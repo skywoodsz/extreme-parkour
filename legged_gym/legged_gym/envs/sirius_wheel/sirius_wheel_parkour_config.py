@@ -122,9 +122,7 @@ class LeggedRobotCfg( BaseConfig ):
         dynamic_friction = 1.0
         restitution = 0.
         measure_heights = True
-        # measured_points_x = [-0.45, -0.3, -0.15, 0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1.05,
-        #                      1.2]  
-        # measured_points_y = [-0.75, -0.6, -0.45, -0.3, -0.15, 0., 0.15, 0.3, 0.45, 0.6, 0.75]
+       
         measured_points_x = [-0.45, -0.3, -0.15, 0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1.05, 
                              1.2, 1.35, 1.50, 1.75, 1.90, 2.05, 2.20, 2.35, 2.50]  
         measured_points_y = [-0.90, -0.75, -0.6, -0.45, -0.3, -0.15, 0., 0.15, 0.3, 
