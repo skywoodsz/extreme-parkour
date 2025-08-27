@@ -42,7 +42,7 @@ class LeggedRobotCfg( BaseConfig ):
 
         contact_buf_len = 100
 
-        next_goal_threshold = 0.2  # 完成距离阈值
+        next_goal_threshold = 0.3  # 完成距离阈值
         reach_goal_delay = 0.1  # 完成时间
         num_future_goal_obs = 2
 
@@ -287,7 +287,7 @@ class LeggedRobotCfg( BaseConfig ):
             jump_height = 1 # -10 -1
             contact_wheel = -0.1 # -0.01
             destination = 1
-            wall_orientation = 0
+            wall_orientation = 0.1
 
         only_positive_rewards = True # if true negative total rewards are clipped at zero (avoids early termination problems)
         tracking_sigma = 0.25 # tracking reward = exp(-error^2/sigma)

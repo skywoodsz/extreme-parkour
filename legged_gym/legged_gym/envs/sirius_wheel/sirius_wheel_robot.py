@@ -437,7 +437,7 @@ class LeggedRobot(BaseTask):
         # self.time_out_buf |= reach_goal_cutoff
 
         # foot contact is within the termination areas
-        self.terminate_area_buf = self.check_contact_in_terminate_masks()
+        # self.terminate_area_buf = self.check_contact_in_terminate_masks()
 
         self.reset_buf |= reach_goal_cutoff
         self.reset_buf |= contact_cutoff 
@@ -445,7 +445,7 @@ class LeggedRobot(BaseTask):
         # self.reset_buf |= roll_cutoff
         self.reset_buf |= pitch_cutoff
         self.reset_buf |= height_cutoff
-        self.reset_buf |= self.terminate_area_buf
+        # self.reset_buf |= self.terminate_area_buf
 
         # print(f"self.cur_goal_idx:{self.cur_goal_idx}")
 
@@ -1609,7 +1609,6 @@ class LeggedRobot(BaseTask):
         rew = torch.exp(-torch.abs(self.target_yaw - self.yaw))
         return rew
     
-    
     def _reward_destination(self):
         final_goals = self.terrain_goals[self.terrain_levels, self.terrain_types][:, -1, :2]
         dist_to_final = torch.norm(self.root_states[:, :2] - final_goals, dim=1)
@@ -1617,6 +1616,15 @@ class LeggedRobot(BaseTask):
         at_destination = dist_to_final < self.cfg.env.next_goal_threshold
         rew = torch.zeros(self.num_envs, device=self.device)
         rew[at_destination] = 10.0
+        return rew
+    
+    def _reward_jump_height(self):
+        # 在cur_gaols 为1, 2 -> 高height，否则为低height
+        high_jump_mask = (self.cur_goal_idx == 1)   # 当前目标索引为 1 或 2 的 agent
+        target_height = torch.full((self.num_envs,), 0.5, device=self.device)
+        target_height[high_jump_mask] = 1.0
+
+        rew = high_jump_mask * torch.exp(-torch.square(target_height - self.root_states[:, 2]) / self.cfg.rewards.tracking_sigma)
         return rew
 
     ############ 正则惩罚  ############
@@ -1634,12 +1642,57 @@ class LeggedRobot(BaseTask):
         return rew
     
     def _reward_wall_orientation(self):
-        # left: 1; right: -1
-        # todo: check
-        pos_neg = self.wall_right_left[self.terrain_levels, self.terrain_types]
-        target_roll = 0.785 * pos_neg
-        rew = (self.cur_goal_idx == 1) * (self.terrain_levels > 3) * torch.sum(torch.square(self.roll  - target_roll))
-        return rew
+        """
+        Roll target follows a smooth sin-encoded trajectory along segment g1->g2:
+            t = progress in [0,1] from goal1 (0) to goal2 (1), measured by projection.
+            target_deg = sin(pi * t) * 45°   # 0 -> 45 -> 0
+        Direction sign from wall_right_left: +1 (left) / -1 (right).
+        Returns a non-negative penalty; give NEGATIVE scale in cfg (e.g., rewards.scales.wall_orientation = -2.0).
+        """
+        device = self.device
+        eps = 1e-6
+
+        # ----- wall side sign (+1 left, -1 right) -----
+        side = self.wall_right_left[self.terrain_levels, self.terrain_types].to(torch.float).to(device)
+
+        # ----- positions -----
+        pos = self.root_states[:, :2]    # (N,2)
+        goals_tile = self.terrain_goals[self.terrain_levels, self.terrain_types]  # (N, num_goals, 3)
+        g1 = goals_tile[:, 0, :2]  # 第一个 goal (x,y)
+        g2 = goals_tile[:, 1, :2]  # 第二个 goal (x,y)
+
+        # ----- projection progress t in [0,1] along g1->g2 -----
+        v12  = g2 - g1
+        d12  = torch.norm(v12, dim=-1) + eps                 # (N,)
+        dir12 = v12 / d12.unsqueeze(-1)                      # (N,2)
+        s = torch.sum((pos - g1) * dir12, dim=-1)         # signed progress (meters)
+        t = torch.clamp(s / d12, 0.0, 1.0)                # normalized progress [0,1]
+
+        # ----- sin-encoded target: 0 -> 45 -> 0 degrees -----
+        target_deg  = torch.sin(np.pi * t) * 45.0            # (N,)
+        target_roll = (target_deg * np.pi / 180.0) * side    # apply left/right sign, radians
+
+        # ----- angle error with tolerance hinge -----
+        roll_now = normalize_angle(self.roll)
+        ang_err  = normalize_angle(roll_now - target_roll)
+
+        hinge   = torch.clamp(torch.abs(ang_err), min=0.0)
+        penalty = hinge * hinge                               # non-negative
+        
+        # ---------- mask ----------
+        mask = ((self.cur_goal_idx == 1) & (self.terrain_levels > 3)).to(penalty.dtype)
+        penalty = penalty * mask
+
+        return penalty
+
+    # def _reward_wall_orientation(self):
+    #     # left: 1; right: -1
+    #     # todo: check
+    #     pos_neg = self.wall_right_left[self.terrain_levels, self.terrain_types]
+    #     roll_tarj = 0.785
+    #     target_roll = roll_tarj * pos_neg
+    #     rew = (self.cur_goal_idx == 1) * (self.terrain_levels > 3) * torch.sum(torch.square(self.roll  - target_roll))
+    #     return rew
 
     def _reward_dof_acc(self):
         return torch.sum(torch.square((self.last_dof_vel - self.dof_vel) / self.dt), dim=1)
@@ -1694,15 +1747,6 @@ class LeggedRobot(BaseTask):
         
     def _reward_dof_vel(self):
         return torch.sum(torch.square(self.dof_vel), dim=1)
-    
-    def _reward_jump_height(self):
-        # 在cur_gaols 为1, 2 -> 高height，否则为低height
-        high_jump_mask = (self.cur_goal_idx == 1)   # 当前目标索引为 1 或 2 的 agent
-        target_height = torch.full((self.num_envs,), 0.5, device=self.device)
-        target_height[high_jump_mask] = 1.0
-
-        rew = high_jump_mask * torch.exp(-torch.square(target_height - self.root_states[:, 2]) / self.cfg.rewards.tracking_sigma)
-        return rew
 
     def _reward_contact_wheel(self):
         

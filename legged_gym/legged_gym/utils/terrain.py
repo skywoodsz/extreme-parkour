@@ -389,15 +389,12 @@ class Terrain:
         
         elif choice < self.proportions[23]: # wall gap
             idx = 24
-            x_range = [0.4 + 1.5 * difficulty, 0.5 + 1.5 * difficulty] #  # [1, 2.1]
-            y_range = [0.3, 0.4+0.2*difficulty] #  #[1.0, 2.1
-            # wall_len = [2-difficulty, 2.1-difficulty] 
-            # wall_len = [2.0, 2.1] # fix wall length
+            # x_range = [0.4 + 1.5 * difficulty, 0.5 + 1.5 * difficulty] # [0.4,2]
+            x_range = [0.4 + 0.6 * difficulty, 0.5 + 0.6 * difficulty]
+            y_range = [0.3, 0.4+0.2*difficulty] #  #[1.0, 2.1]
 
-            # start from 45 deg
             wall_height = 5.0
             wall_width = 1.0
-            # wall_width = 1.3 - difficulty
     
             parkour_wall_gap2(terrain,
                                  x_range=x_range,
@@ -515,7 +512,7 @@ def parkour_wall_gap2(terrain,
     terrain.wall_contact_area = np.zeros_like(terrain.height_field_raw, dtype=bool)
     terrain.pos_neg = 1
 
-    gap_height = np.random.uniform(0.1, 5.0)
+    gap_height = np.random.uniform(0.5, 5.0)
     terrain.height_field_raw[:] = -round(gap_height / terrain.vertical_scale) # gap
     terrain.terminate_mask[:] = True 
     terrain.wall_contact_area[:] = False

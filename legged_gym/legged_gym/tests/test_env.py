@@ -42,7 +42,7 @@ import wandb
 
 def test_env(args):
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
-    env_cfg.env.num_envs =  16
+    env_cfg.env.num_envs =  1
     env_cfg.video_logger.enable_video_logger = False
 
     wandb.init(project="legged_wheel_parkour", name=args.exptid,
